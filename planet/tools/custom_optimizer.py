@@ -44,17 +44,32 @@ class CustomOptimizer(object):
     if self._clipping:
       gradients, _ = tf.clip_by_global_norm(
           gradients, self._clipping, gradient_norm)
-    graph = attr_dict.AttrDict(locals())
-    summary = tf.cond(
-        self._should_summarize, lambda: self._define_summaries(graph), str)
-    optimize = self._optimizer.apply_gradients(zip(gradients, variables))
-    return optimize, summary
+
+
+
+
+    #tf.get_variable_scope().reuse_variables()
+    return gradients, variables
+
+
 
   def _define_summaries(self, graph):   # Returns a scalar Tensor of type string
     summaries = []
     summaries.append(tf.summary.scalar('learning_rate', self._learning_rate))
-    summaries.append(tf.summary.scalar('gradient_norm', graph.gradient_norm))
-    if self._clipping:
-      clipped = tf.minimum(graph.gradient_norm, self._clipping)
-      summaries.append(tf.summary.scalar('clipped_gradient_norm', clipped))
+    #summaries.append(tf.summary.scalar('gradient_norm', graph.gradient_norm))
+    #if self._clipping:
+      #clipped = tf.minimum(graph.gradient_norm, self._clipping)
+      #summaries.append(tf.summary.scalar('clipped_gradient_norm', clipped))
     return tf.summary.merge(summaries)
+
+
+
+
+  def apply(self, ave_grad, variable):
+    optimize = self._optimizer.apply_gradients(zip(ave_grad, variable))
+    graph = attr_dict.AttrDict(locals())
+    summary = tf.cond(
+      self._should_summarize, lambda: self._define_summaries(graph), str)
+
+    return optimize, summary
+

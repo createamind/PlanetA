@@ -27,7 +27,7 @@ from planet import models
 from planet import networks
 from planet import tools
 from planet.scripts import tasks as tasks_lib
-from planet import BATCHSIZE, CHUNK_LEN, NUM_SEED, H_SIZE, S_SIZE
+from planet import BATCHSIZE, CHUNK_LEN, NUM_SEED, H_SIZE, S_SIZE,NUM_GPU
 
 # with config.unlocked:
 def default(config, params):   # config={}, params = {'tasks': ['breakout'], 'logdir': './log_testing/00001'}
@@ -59,7 +59,7 @@ def _data_processing(config, params):
   config.max_episodes = None
   config.scan_episodes_every = params.get('scan_episodes_every', 10)
   config.data_loader = params.get('data_loader', 'scan')
-  config.batch_shape = params.get('batch_shape', (BATCHSIZE, CHUNK_LEN))
+  config.batch_shape = params.get('batch_shape', (BATCHSIZE, CHUNK_LEN,NUM_GPU))
   config.num_chunks = params.get('num_chunks', 1)
   image_bits = params.get('image_bits', 8)
   config.preprocess_fn = functools.partial(

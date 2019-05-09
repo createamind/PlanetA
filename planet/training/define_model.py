@@ -23,7 +23,7 @@ import tensorflow as tf
 from planet import tools
 from planet.training import define_summaries
 from planet.training import utility
-
+from planet.tools import custom_optimizer
 
 def define_model(data, trainer, config):
   tf.logging.info('Build TensorFlow compute graph.')
@@ -32,88 +32,122 @@ def define_model(data, trainer, config):
   global_step = trainer.global_step  # tf.train.get_or_create_global_step()
   phase = trainer.phase
   should_summarize = trainer.log
+  num_gpu=config.batch_shape[2]
+  var_for_trainop={}
+  grads_dist={}
 
-  # Preprocess data.
-  with tf.device('/cpu:0'):
-    if config.dynamic_action_noise:
-      data['action'] += tf.random_normal(
-          tf.shape(data['action']), 0.0, config.dynamic_action_noise)
-    prev_action = tf.concat(
-        [0 * data['action'][:, :1], data['action'][:, :-1]], 1)   # i.e.: (0 * a1, a1, a2, ..., a49)
-    obs = data.copy()
-    del obs['length']
+  op_array=[]
+  dist={}
+  for name, optimizer_cls in config.optimizers.items():
+      grads_dist[name] = []
+      var_for_trainop[name] =[]
 
-  # Instantiate network blocks.
-  cell = config.cell()
-  kwargs = dict()
-  encoder = tf.make_template(
-      'encoder', config.encoder, create_scope_now_=True, **kwargs)
-  heads = {}
-  for key, head in config.heads.items():   # heads: network of 'image', 'reward', 'state'
-    name = 'head_{}'.format(key)
-    kwargs = dict(data_shape=obs[key].shape[2:].as_list())
-    heads[key] = tf.make_template(name, head, create_scope_now_=True, **kwargs)
+  for b in  range(num_gpu):
+      dist[b]={}
 
-  # Embed observations and unroll model.
-  embedded = encoder(obs)     # encode obs['image']
-  # Separate overshooting and zero step observations because computing
-  # overshooting targets for images would be expensive.
-  zero_step_obs = {}
-  overshooting_obs = {}
-  for key, value in obs.items():
-    if config.zero_step_losses.get(key):
-      zero_step_obs[key] = value
-    if config.overshooting_losses.get(key):
-      overshooting_obs[key] = value
-  assert config.overshooting <= config.batch_shape[1]
-  target, prior, posterior, mask = tools.overshooting(                         #  prior:{'mean':shape(40,50,51,30), ...}; posterior:{'mean':shape(40,50,51,30), ...}
-      cell, overshooting_obs, embedded, prev_action, data['length'],           #  target:{'reward':shape(40,50,51), ...}; mask:shape(40,50,51)
-      config.overshooting + 1)
-  losses = []
+  for a in list(data.keys()):
+    data_split=tf.split(data[a], num_gpu)
+    for b in range(num_gpu):
 
-  # Zero step losses.
-  _, zs_prior, zs_posterior, zs_mask = tools.nested.map(
-      lambda tensor: tensor[:, :, :1], (target, prior, posterior, mask))
-  zs_target = {key: value[:, :, None] for key, value in zero_step_obs.items()}
-  zero_step_losses = utility.compute_losses(
-      config.zero_step_losses, cell, heads, step, zs_target, zs_prior,
-      zs_posterior, zs_mask, config.free_nats, debug=config.debug)
-  losses += [
-      loss * config.zero_step_losses[name] for name, loss in
-      zero_step_losses.items()]
-  if 'divergence' not in zero_step_losses:
-    zero_step_losses['divergence'] = tf.zeros((), dtype=tf.float32)
+        dist[b][a]= data_split[b]
 
-  # Overshooting losses.
-  if config.overshooting > 1:
-    os_target, os_prior, os_posterior, os_mask = tools.nested.map(
-        lambda tensor: tensor[:, :, 1:-1], (target, prior, posterior, mask))
-    if config.stop_os_posterior_gradient:
-      os_posterior = tools.nested.map(tf.stop_gradient, os_posterior)
-    overshooting_losses = utility.compute_losses(
-        config.overshooting_losses, cell, heads, step, os_target, os_prior,
-        os_posterior, os_mask, config.free_nats, debug=config.debug)
-    losses += [
-        loss * config.overshooting_losses[name] for name, loss in
-        overshooting_losses.items()]
-  else:
-    overshooting_losses = {}
-  if 'divergence' not in overshooting_losses:
-    overshooting_losses['divergence'] = tf.zeros((), dtype=tf.float32)
+  for b in range(num_gpu):
+    with tf.device('/gpu:%s' % b):
 
-  # Workaround for TensorFlow deadlock bug.
-  loss = sum(losses)
-  train_loss = tf.cond(
-      tf.equal(phase, 'train'),
-      lambda: loss,
-      lambda: 0 * tf.get_variable('dummy_loss', (), tf.float32))
-  train_summary = utility.apply_optimizers(
-      train_loss, step, should_summarize, config.optimizers)
+      data=dist[b]
+      # Preprocess data.
+
+      if config.dynamic_action_noise:
+        data['action'] += tf.random_normal(
+            tf.shape(data['action']), 0.0, config.dynamic_action_noise)
+      prev_action = tf.concat(
+          [0 * data['action'][:, :1], data['action'][:, :-1]], 1)   # i.e.: (0 * a1, a1, a2, ..., a49)
+      obs = data.copy()
+      del obs['length']
+
+      # Instantiate network blocks.
+      cell = config.cell()
+      kwargs = dict()
+      encoder = tf.make_template(
+          'encoder', config.encoder, create_scope_now_=True, **kwargs)
+      heads = {}
+      for key, head in config.heads.items():   # heads: network of 'image', 'reward', 'state'
+        name = 'head_{}'.format(key)
+        kwargs = dict(data_shape=obs[key].shape[2:].as_list())
+        heads[key] = tf.make_template(name, head, create_scope_now_=True, **kwargs)
+
+      # Embed observations and unroll model.
+      embedded = encoder(obs)     # encode obs['image']
+      # Separate overshooting and zero step observations because computing
+      # overshooting targets for images would be expensive.
+      zero_step_obs = {}
+      overshooting_obs = {}
+      for key, value in obs.items():
+        if config.zero_step_losses.get(key):
+          zero_step_obs[key] = value
+        if config.overshooting_losses.get(key):
+          overshooting_obs[key] = value
+      assert config.overshooting <= config.batch_shape[1]
+      target, prior, posterior, mask = tools.overshooting(                         #  prior:{'mean':shape(40,50,51,30), ...}; posterior:{'mean':shape(40,50,51,30), ...}
+          cell, overshooting_obs, embedded, prev_action, data['length'],           #  target:{'reward':shape(40,50,51), ...}; mask:shape(40,50,51)
+          config.overshooting + 1)
+      losses = []
+
+      # Zero step losses.
+      _, zs_prior, zs_posterior, zs_mask = tools.nested.map(
+          lambda tensor: tensor[:, :, :1], (target, prior, posterior, mask))
+      zs_target = {key: value[:, :, None] for key, value in zero_step_obs.items()}
+      zero_step_losses = utility.compute_losses(
+          config.zero_step_losses, cell, heads, step, zs_target, zs_prior,
+          zs_posterior, zs_mask, config.free_nats, debug=config.debug)
+      losses += [
+          loss * config.zero_step_losses[name] for name, loss in
+          zero_step_losses.items()]
+      if 'divergence' not in zero_step_losses:
+        zero_step_losses['divergence'] = tf.zeros((), dtype=tf.float32)
+
+      # Overshooting losses.
+      if config.overshooting > 1:
+        os_target, os_prior, os_posterior, os_mask = tools.nested.map(
+            lambda tensor: tensor[:, :, 1:-1], (target, prior, posterior, mask))
+        if config.stop_os_posterior_gradient:
+          os_posterior = tools.nested.map(tf.stop_gradient, os_posterior)
+        overshooting_losses = utility.compute_losses(
+            config.overshooting_losses, cell, heads, step, os_target, os_prior,
+            os_posterior, os_mask, config.free_nats, debug=config.debug)
+        losses += [
+            loss * config.overshooting_losses[name] for name, loss in
+            overshooting_losses.items()]
+      else:
+        overshooting_losses = {}
+      if 'divergence' not in overshooting_losses:
+        overshooting_losses['divergence'] = tf.zeros((), dtype=tf.float32)
+
+      # Workaround for TensorFlow deadlock bug.
+      loss = sum(losses)
+      train_loss = tf.cond(
+          tf.equal(phase, 'train'),
+          lambda: loss,
+          lambda: 0 * tf.get_variable('dummy_loss', (), tf.float32))
+      training_grad_dist = utility.apply_optimizers(
+          train_loss, step, should_summarize, config.optimizers)
+
+      for a in grads_dist.keys():
+          grads_dist[a].append(training_grad_dist[a]["grad"])
+          if b == 0:
+            var_for_trainop[a].append(training_grad_dist[a]["var"])
+
+
   # train_summary = tf.cond(
   #     tf.equal(phase, 'train'),
   #     lambda: utility.apply_optimizers(
   #         loss, step, should_summarize, config.optimizers),
   #     str, name='optimizers')
+  averaged_gradients ={}
+  with tf.device('/cpu:0'):
+    for a in grads_dist.keys():
+        averaged_gradients[a]  = average_gradients(grads_dist[a])
+    train_summary=utility.apply_optimizers2(averaged_gradients,var_for_trainop,step,should_summarize,config.optimizers)
 
   # Active data collection.
   collect_summaries = []
@@ -157,3 +191,22 @@ def define_model(data, trainer, config):
   with tf.control_dependencies(dependencies):
     score = tf.identity(score)
   return score, summaries
+
+
+
+def average_gradients(tower_grads):
+    average_grads = []
+    for i,all_grads in enumerate(zip(*tower_grads)):
+        if i ==0:
+            average_grads.append(all_grads[0])
+            continue
+        grads = []
+        for g in all_grads:
+            expanded_g = tf.expand_dims(g, 0)
+            grads.append(expanded_g)
+            grad = tf.concat(axis=0, values=grads)
+            grad = tf.reduce_mean(grad, 0)
+            average_grads.append(grad)
+    return average_grads
+
+

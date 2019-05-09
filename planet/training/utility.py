@@ -218,15 +218,37 @@ def compute_losses(
 
 
 def apply_optimizers(loss, step, should_summarize, optimizers):
-  summaries = []
-  training_ops = []
+
+
+  training_grad_dist={}
   for name, optimizer_cls in optimizers.items():
+      training_grad_dist[name] = {}
+  for name, optimizer_cls in optimizers.items():
+    #with tf.variable_scope('optimizer_{}'.format(name)):
     with tf.variable_scope('optimizer_{}'.format(name)):
-      optimizer = optimizer_cls(step=step, should_summarize=should_summarize)
-      optimize, opt_summary = optimizer.minimize(loss)
-      training_ops.append(optimize)
-      summaries.append(opt_summary)
-  with tf.control_dependencies(training_ops):
+
+        optimizer = optimizer_cls(step=step, should_summarize=should_summarize)
+        grad, variable = optimizer.minimize(loss)
+        training_grad_dist[name]["grad"]=grad
+        training_grad_dist[name]["var"]=variable
+        training_grad_dist[name]["optimizer"] = optimizer
+
+
+  #with tf.control_dependencies(train_grads):
+  return training_grad_dist
+
+def apply_optimizers2(ave_grads, var,step,should_summarize, optimizers):
+  summaries = []
+  train_ops = []
+  for name, optimizer_cls in optimizers.items():
+      with tf.variable_scope('optimizer_{}'.format(name)) as scope:
+        #scope.reuse_variables()
+        #with tf.variable_scope('optimizer_truly_apply{}'.format(name)):
+        optimizer = optimizer_cls(step=step, should_summarize=should_summarize)
+        train_op,opt_summary= optimizer.apply(ave_grads[name],var[name][0])
+        summaries.append(opt_summary)
+        train_ops.append(train_op)
+  with tf.control_dependencies(train_ops):
     return tf.cond(should_summarize, lambda: tf.summary.merge(summaries), str)
 
 
