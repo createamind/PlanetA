@@ -53,89 +53,92 @@ def define_model(data, trainer, config):
 
   for b in range(num_gpu):
     with tf.device('/gpu:%s' % b):
+      scope_name = r'.+shared_vars'
+      with tf.name_scope('%s_%d' % ("GPU", b)):   # 'GPU'
+          with tf.variable_scope(name_or_scope= 'shared_vars', reuse=tf.AUTO_REUSE):
 
-      data=dist[b]
-      # Preprocess data.
+              data=dist[b]
+              # Preprocess data.
 
-      if config.dynamic_action_noise:
-        data['action'] += tf.random_normal(
-            tf.shape(data['action']), 0.0, config.dynamic_action_noise)
-      prev_action = tf.concat(
-          [0 * data['action'][:, :1], data['action'][:, :-1]], 1)   # i.e.: (0 * a1, a1, a2, ..., a49)
-      obs = data.copy()
-      del obs['length']
+              if config.dynamic_action_noise:
+                data['action'] += tf.random_normal(
+                    tf.shape(data['action']), 0.0, config.dynamic_action_noise)
+              prev_action = tf.concat(
+                  [0 * data['action'][:, :1], data['action'][:, :-1]], 1)   # i.e.: (0 * a1, a1, a2, ..., a49)
+              obs = data.copy()
+              del obs['length']
 
-      # Instantiate network blocks.
-      cell = config.cell()
-      kwargs = dict()
-      encoder = tf.make_template(
-          'encoder', config.encoder, create_scope_now_=True, **kwargs)
-      heads = {}
-      for key, head in config.heads.items():   # heads: network of 'image', 'reward', 'state'
-        name = 'head_{}'.format(key)
-        kwargs = dict(data_shape=obs[key].shape[2:].as_list())
-        heads[key] = tf.make_template(name, head, create_scope_now_=True, **kwargs)
+              # Instantiate network blocks.
+              cell = config.cell()
+              kwargs = dict()
+              encoder = tf.make_template(
+                  'encoder', config.encoder, create_scope_now_=True, **kwargs)
+              heads = {}
+              for key, head in config.heads.items():   # heads: network of 'image', 'reward', 'state'
+                name = 'head_{}'.format(key)
+                kwargs = dict(data_shape=obs[key].shape[2:].as_list())
+                heads[key] = tf.make_template(name, head, create_scope_now_=True, **kwargs)
 
-      # Embed observations and unroll model.
-      embedded = encoder(obs)     # encode obs['image']
-      # Separate overshooting and zero step observations because computing
-      # overshooting targets for images would be expensive.
-      zero_step_obs = {}
-      overshooting_obs = {}
-      for key, value in obs.items():
-        if config.zero_step_losses.get(key):
-          zero_step_obs[key] = value
-        if config.overshooting_losses.get(key):
-          overshooting_obs[key] = value
-      assert config.overshooting <= config.batch_shape[1]
-      target, prior, posterior, mask = tools.overshooting(                         #  prior:{'mean':shape(40,50,51,30), ...}; posterior:{'mean':shape(40,50,51,30), ...}
-          cell, overshooting_obs, embedded, prev_action, data['length'],           #  target:{'reward':shape(40,50,51), ...}; mask:shape(40,50,51)
-          config.overshooting + 1)
-      losses = []
+              # Embed observations and unroll model.
+              embedded = encoder(obs)     # encode obs['image']
+              # Separate overshooting and zero step observations because computing
+              # overshooting targets for images would be expensive.
+              zero_step_obs = {}
+              overshooting_obs = {}
+              for key, value in obs.items():
+                if config.zero_step_losses.get(key):
+                  zero_step_obs[key] = value
+                if config.overshooting_losses.get(key):
+                  overshooting_obs[key] = value
+              assert config.overshooting <= config.batch_shape[1]
+              target, prior, posterior, mask = tools.overshooting(                         #  prior:{'mean':shape(40,50,51,30), ...}; posterior:{'mean':shape(40,50,51,30), ...}
+                  cell, overshooting_obs, embedded, prev_action, data['length'],           #  target:{'reward':shape(40,50,51), ...}; mask:shape(40,50,51)
+                  config.overshooting + 1)
+              losses = []
 
-      # Zero step losses.
-      _, zs_prior, zs_posterior, zs_mask = tools.nested.map(
-          lambda tensor: tensor[:, :, :1], (target, prior, posterior, mask))
-      zs_target = {key: value[:, :, None] for key, value in zero_step_obs.items()}
-      zero_step_losses = utility.compute_losses(
-          config.zero_step_losses, cell, heads, step, zs_target, zs_prior,
-          zs_posterior, zs_mask, config.free_nats, debug=config.debug)
-      losses += [
-          loss * config.zero_step_losses[name] for name, loss in
-          zero_step_losses.items()]
-      if 'divergence' not in zero_step_losses:
-        zero_step_losses['divergence'] = tf.zeros((), dtype=tf.float32)
+              # Zero step losses.
+              _, zs_prior, zs_posterior, zs_mask = tools.nested.map(
+                  lambda tensor: tensor[:, :, :1], (target, prior, posterior, mask))
+              zs_target = {key: value[:, :, None] for key, value in zero_step_obs.items()}
+              zero_step_losses = utility.compute_losses(
+                  config.zero_step_losses, cell, heads, step, zs_target, zs_prior,
+                  zs_posterior, zs_mask, config.free_nats, debug=config.debug)
+              losses += [
+                  loss * config.zero_step_losses[name] for name, loss in
+                  zero_step_losses.items()]
+              if 'divergence' not in zero_step_losses:
+                zero_step_losses['divergence'] = tf.zeros((), dtype=tf.float32)
 
-      # Overshooting losses.
-      if config.overshooting > 1:
-        os_target, os_prior, os_posterior, os_mask = tools.nested.map(
-            lambda tensor: tensor[:, :, 1:-1], (target, prior, posterior, mask))
-        if config.stop_os_posterior_gradient:
-          os_posterior = tools.nested.map(tf.stop_gradient, os_posterior)
-        overshooting_losses = utility.compute_losses(
-            config.overshooting_losses, cell, heads, step, os_target, os_prior,
-            os_posterior, os_mask, config.free_nats, debug=config.debug)
-        losses += [
-            loss * config.overshooting_losses[name] for name, loss in
-            overshooting_losses.items()]
-      else:
-        overshooting_losses = {}
-      if 'divergence' not in overshooting_losses:
-        overshooting_losses['divergence'] = tf.zeros((), dtype=tf.float32)
+              # Overshooting losses.
+              if config.overshooting > 1:
+                os_target, os_prior, os_posterior, os_mask = tools.nested.map(
+                    lambda tensor: tensor[:, :, 1:-1], (target, prior, posterior, mask))
+                if config.stop_os_posterior_gradient:
+                  os_posterior = tools.nested.map(tf.stop_gradient, os_posterior)
+                overshooting_losses = utility.compute_losses(
+                    config.overshooting_losses, cell, heads, step, os_target, os_prior,
+                    os_posterior, os_mask, config.free_nats, debug=config.debug)
+                losses += [
+                    loss * config.overshooting_losses[name] for name, loss in
+                    overshooting_losses.items()]
+              else:
+                overshooting_losses = {}
+              if 'divergence' not in overshooting_losses:
+                overshooting_losses['divergence'] = tf.zeros((), dtype=tf.float32)
 
-      # Workaround for TensorFlow deadlock bug.
-      loss = sum(losses)
-      train_loss = tf.cond(
-          tf.equal(phase, 'train'),
-          lambda: loss,
-          lambda: 0 * tf.get_variable('dummy_loss', (), tf.float32))
-      training_grad_dist = utility.apply_optimizers(
-          train_loss, step, should_summarize, config.optimizers)
+              # Workaround for TensorFlow deadlock bug.
+              loss = sum(losses)
+              train_loss = tf.cond(
+                  tf.equal(phase, 'train'),
+                  lambda: loss,
+                  lambda: 0 * tf.get_variable('dummy_loss', (), tf.float32))
+              training_grad_dist = utility.apply_optimizers(
+                  train_loss, step, should_summarize, config.optimizers, include_var=(scope_name,))
 
-      for a in grads_dist.keys():
-          grads_dist[a].append(training_grad_dist[a]["grad"])
-          if b == 0:
-            var_for_trainop[a].append(training_grad_dist[a]["var"])
+              for a in grads_dist.keys():
+                  grads_dist[a].append(training_grad_dist[a]["grad"])
+                  if b == 0:
+                    var_for_trainop[a].append(training_grad_dist[a]["var"])
 
 
   # train_summary = tf.cond(
@@ -193,20 +196,55 @@ def define_model(data, trainer, config):
   return score, summaries
 
 
+def average_gradients0(tower_grads):
+  """Calculate the average gradient for each shared variable across all towers.
+
+  Note that this function provides a synchronization point across all towers.
+
+  Args:
+    tower_grads: List of lists of (gradient, variable) tuples. The outer list
+      is over individual gradients. The inner list is over the gradient
+      calculation for each tower.
+  Returns:
+     List of pairs of (gradient, variable) where the gradient has been averaged
+     across all towers.
+  """
+  average_grads = []
+  for grad_and_vars in zip(*tower_grads):
+    # Note that each grad_and_vars looks like the following:
+    #   ((grad0_gpu0, var0_gpu0), ... , (grad0_gpuN, var0_gpuN))
+    grads = []
+    for g, _ in grad_and_vars:
+      # Add 0 dimension to the gradients to represent the tower.
+      expanded_g = tf.expand_dims(g, 0)
+
+      # Append on a 'tower' dimension which we will average over below.
+      grads.append(expanded_g)
+
+    # Average over the 'tower' dimension.
+    grad = tf.concat(axis=0, values=grads)
+    grad = tf.reduce_mean(grad, 0)
+
+    # Keep in mind that the Variables are redundant because they are shared
+    # across towers. So .. we will just return the first tower's pointer to
+    # the Variable.
+    v = grad_and_vars[0][1]
+    grad_and_var = (grad, v)
+    average_grads.append(grad_and_var)
+  return average_grads
+
+
 
 def average_gradients(tower_grads):
     average_grads = []
-    for i,all_grads in enumerate(zip(*tower_grads)):
-        if i ==0:
-            average_grads.append(all_grads[0])
-            continue
+    for grad_gpus in zip(*tower_grads):
         grads = []
-        for g in all_grads:
+        for g in grad_gpus:
             expanded_g = tf.expand_dims(g, 0)
             grads.append(expanded_g)
-            grad = tf.concat(axis=0, values=grads)
-            grad = tf.reduce_mean(grad, 0)
-            average_grads.append(grad)
+        grad = tf.concat(axis=0, values=grads)
+        grad = tf.reduce_mean(grad, 0)
+        average_grads.append(grad)
     return average_grads
 
 

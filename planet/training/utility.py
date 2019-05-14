@@ -217,7 +217,7 @@ def compute_losses(
   return losses
 
 
-def apply_optimizers(loss, step, should_summarize, optimizers):
+def apply_optimizers(loss, step, should_summarize, optimizers, include_var):
 
 
   training_grad_dist={}
@@ -227,7 +227,7 @@ def apply_optimizers(loss, step, should_summarize, optimizers):
     #with tf.variable_scope('optimizer_{}'.format(name)):
     with tf.variable_scope('optimizer_{}'.format(name)):
 
-        optimizer = optimizer_cls(step=step, should_summarize=should_summarize)
+        optimizer = optimizer_cls(step=step, should_summarize=should_summarize, include=include_var, exclude='global_step:0')
         grad, variable = optimizer.minimize(loss)
         training_grad_dist[name]["grad"]=grad
         training_grad_dist[name]["var"]=variable
