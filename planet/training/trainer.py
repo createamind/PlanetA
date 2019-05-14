@@ -293,7 +293,8 @@ class Trainer(object):
     Returns:
       Session.
     """
-    config = tf.ConfigProto()
+    # config = tf.ConfigProto()
+    config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
     config.gpu_options.allow_growth = True
     try:
       return tf.Session('local', config=config)

@@ -229,6 +229,38 @@ def apply_optimizers(loss, step, should_summarize, optimizers):
   with tf.control_dependencies(training_ops):
     return tf.cond(should_summarize, lambda: tf.summary.merge(summaries), str)
 
+#  apply_optimizers is decomposed into get_grads and  apply_grads
+
+def get_grads(loss, step, should_summarize, optimizers, include_var):
+  grad_dict={}
+  for name, optimizer_cls in optimizers.items():
+      grad_dict[name] = {}
+  for name, optimizer_cls in optimizers.items():
+    with tf.variable_scope('optimizer_{}'.format(name)):
+        optimizer = optimizer_cls(step=step, should_summarize=should_summarize, include=include_var, exclude='global_step:0')   # include=include_var, exclude='global_step:0'
+        grad, variable = optimizer.optimizer_get_grads(loss)
+        grad_dict[name]["grad"]=grad
+        grad_dict[name]["var"]=variable
+        # grad_dict[name]["optimizer"] = optimizer
+  return grad_dict
+
+
+def apply_grads(ave_grads, var, step, should_summarize, optimizers):
+  summaries = []
+  train_ops = []
+  for name, optimizer_cls in optimizers.items():
+      with tf.variable_scope('optimizer_{}'.format(name)) as scope:
+        #scope.reuse_variables()
+        #with tf.variable_scope('optimizer_truly_apply{}'.format(name)):
+        optimizer = optimizer_cls(step=step, should_summarize=should_summarize)
+        train_op, opt_summary= optimizer.optimizer_apply_grads(ave_grads[name],var[name][0])
+        summaries.append(opt_summary)
+        train_ops.append(train_op)
+  with tf.control_dependencies(train_ops):
+    return tf.cond(should_summarize, lambda: tf.summary.merge(summaries), str)
+
+
+
 
 def simulate_episodes(config, params, graph, name):
   def env_ctor():

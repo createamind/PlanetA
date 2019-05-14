@@ -44,17 +44,48 @@ class CustomOptimizer(object):
     if self._clipping:
       gradients, _ = tf.clip_by_global_norm(
           gradients, self._clipping, gradient_norm)
+
     graph = attr_dict.AttrDict(locals())
     summary = tf.cond(
         self._should_summarize, lambda: self._define_summaries(graph), str)
+
     optimize = self._optimizer.apply_gradients(zip(gradients, variables))
     return optimize, summary
+
+# minimize is decomposed into get_grads and apply_grads
+
+  def optimizer_get_grads(self, loss):
+    summaries = []
+    gradients, variables = zip(*self._optimizer.compute_gradients(       #  tf.train.AdamOptimizer.compute_gradients(loss, var_list, ...)
+        loss, self._variables, colocate_gradients_with_ops=True))        #  returns a list of (gradient, variable) pairs where "gradient" is the gradient for "variable".
+    gradient_norm = tf.global_norm(gradients)        # Computes the global norm of multiple tensors.
+    if self._clipping:
+      gradients, _ = tf.clip_by_global_norm(
+          gradients, self._clipping, gradient_norm)
+
+    # graph = attr_dict.AttrDict(locals())
+    # summary = tf.cond(
+    #     self._should_summarize, lambda: self._define_summaries(graph), str)
+    #
+    # optimize = self._optimizer.apply_gradients(zip(gradients, variables))
+    return gradients, variables
+
+  def optimizer_apply_grads(self, ave_grads, variables):
+
+    graph = attr_dict.AttrDict(locals())
+    summary = tf.cond(
+      self._should_summarize, lambda: self._define_summaries(graph), str)
+
+    optimize = self._optimizer.apply_gradients(zip(ave_grads, variables))
+    return optimize, summary
+
+
 
   def _define_summaries(self, graph):   # Returns a scalar Tensor of type string
     summaries = []
     summaries.append(tf.summary.scalar('learning_rate', self._learning_rate))
-    summaries.append(tf.summary.scalar('gradient_norm', graph.gradient_norm))
-    if self._clipping:
-      clipped = tf.minimum(graph.gradient_norm, self._clipping)
-      summaries.append(tf.summary.scalar('clipped_gradient_norm', clipped))
+    # summaries.append(tf.summary.scalar('gradient_norm', graph.gradient_norm))
+    # if self._clipping:
+    #   clipped = tf.minimum(graph.gradient_norm, self._clipping)
+    #   summaries.append(tf.summary.scalar('clipped_gradient_norm', clipped))
     return tf.summary.merge(summaries)
