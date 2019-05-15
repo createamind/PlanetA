@@ -20,7 +20,7 @@ from tensorflow_probability import distributions as tfd
 import tensorflow as tf
 
 from planet.control import discounted_return
-from planet import tools, PLANNING
+from planet import tools, PLANNING, STATES
 
 def delta_degree(x):
   return tf.where(tf.abs(x) < 180 , x, x-tf.sign(x)*360)
@@ -62,7 +62,7 @@ def cross_entropy_method(
     objectives = objective_fn(state)   # shape: ['reward':shape(1000,12), 'angular_speed_degree':shape(1000,12), ...]
     reward = objectives['reward']
     angular_speed = objectives['angular_speed_degree']
-    forward_speed = objectives['forward_speed']/10.0
+    forward_speed = objectives['forward_speed']   # m/s
     collided = objectives['collided']
     intersection_offroad = objectives['intersection_offroad']
     intersection_otherlane = objectives['intersection_otherlane']
@@ -93,7 +93,7 @@ def cross_entropy_method(
 
     if PLANNING:
       ##################    #3. define reward for planning
-      rewards = forward_speed - 300.0*tf.where(collided>0.3, collided, tf.ones_like(collided)*0.0) -20.0*intersection_offroad - 10.0*intersection_otherlane
+      rewards = forward_speed/10.0 - 300.0*tf.where(collided>0.3, collided, tf.ones_like(collided)*0.0) -20.0*intersection_offroad - 10.0*intersection_otherlane
       return_ = discounted_return.discounted_return(rewards, length, discount)[:, 0]           # shape: (1000,)
       return_ = tf.reshape(return_, (original_batch, amount))                                 # shape: (1, 1000)
 
