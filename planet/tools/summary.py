@@ -117,9 +117,10 @@ def log_prob_summaries(dists, obs, mask, name='log_prob'):
   summaries = []
   with tf.variable_scope(name):
     for key, dist in dists.items():
-      log_probs = dist.log_prob(obs[key])
-      log_prob = tf.reduce_mean(masklib.mask(log_probs, mask))
-      summaries.append(tf.summary.scalar(key, log_prob))
+      if key != 'collided':
+        log_probs = dist.log_prob(obs[key])
+        log_prob = tf.reduce_mean(masklib.mask(log_probs, mask))
+        summaries.append(tf.summary.scalar(key, log_prob))
   return summaries
 
 
@@ -153,7 +154,7 @@ def prediction_summaries(dists, data, state, name='state'):
     # Predictions.
     log_probs = {}
     for key, dist in dists.items():
-      if key in ('image',):
+      if key in ('image','collided'):
         continue
       # We only look at the first example in the batch.
       log_prob = dist.log_prob(data[key])[0]

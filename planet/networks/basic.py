@@ -37,3 +37,16 @@ def feed_forward(
   dist = tools.MSEDistribution(mean)
   dist = tfd.Independent(dist, len(data_shape))
   return dist
+
+def feed_forward_classfy(
+    state, data_shape, num_layers=2, activation=None, cut_gradient=False):
+  """Create a model returning probabilities for classfication."""
+  # with tf.variable_scope('feed_forward_network'):
+  hidden = state
+  if cut_gradient:
+    hidden = tf.stop_gradient(hidden)
+  for _ in range(num_layers):
+    hidden = tf.layers.dense(hidden, 100, tf.nn.relu)
+  prob = tf.layers.dense(hidden, 2, activation)
+  #prob = tf.squeeze(prob)
+  return prob

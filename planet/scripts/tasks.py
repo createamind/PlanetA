@@ -312,6 +312,9 @@ class DeepMindWrapper_carla(object):
     # return obs, reward, done, {}
 
 
+
+
+
   def reset(self):
     self.img, info = self._env.reset()
     while info["next_command"] in ["GO_STRAIGHT","TURN_LEFT","TURN_RIGHT"]:

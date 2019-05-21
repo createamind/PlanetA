@@ -110,7 +110,11 @@ def _tasks(config, params):
       tasks[index] = tasks_lib.Task(
           task.name, env_ctor, task.max_length, ['reward'])
   for name in tasks[0].state_components:           # state_components of task, e.g. ['reward', 'position', 'velocity']
-    config.heads[name] = networks.feed_forward
+    if name == 'collided':
+        config.heads[name] = networks.feed_forward_classfy
+    else:
+
+        config.heads[name] = networks.feed_forward
     config.zero_step_losses[name] = 1.0
   config.tasks = tasks
   return config
@@ -255,7 +259,11 @@ def _define_simulation(task, config, params, horizon, batch_size):
     # return graph.heads['angular_speed_degree'](graph.cell.features_from_state(state)).mean()
     obj_dict = {}
     for component in task.state_components:
-        obj_dict[component] = graph.heads[component](graph.cell.features_from_state(state)).mean()
+        if component == 'collided':
+            obj_dict[component] = tf.argmax(graph.heads[component](graph.cell.features_from_state(state)),-1)
+        else:
+
+            obj_dict[component] = graph.heads[component](graph.cell.features_from_state(state)).mean()
     return obj_dict
   planner = functools.partial(
       control.planning.cross_entropy_method,

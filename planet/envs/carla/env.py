@@ -808,7 +808,7 @@ class CarlaEnv(gym.Env):
 
 def collision_(cur):
     collided = (cur.collision_vehicles > 0 or cur.collision_pedestrians > 0 or cur.collision_other > 0)
-    return np.array(collided, dtype=np.float32)
+    return np.array(collided, dtype=np.int32)
 
 
 def compute_reward_corl2017(env, prev, current):

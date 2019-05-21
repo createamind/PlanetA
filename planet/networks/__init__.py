@@ -18,3 +18,4 @@ from __future__ import print_function
 
 from . import conv_ha
 from .basic import feed_forward
+from .basic import feed_forward_classfy

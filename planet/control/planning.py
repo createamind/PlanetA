@@ -93,7 +93,7 @@ def cross_entropy_method(
 
     if PLANNING:
       ##################    #3. define reward for planning
-      rewards = forward_speed/10.0 - 300.0*tf.where(collided>0.3, collided, tf.ones_like(collided)*0.0) -20.0*intersection_offroad - 10.0*intersection_otherlane
+      rewards = forward_speed/10.0 - 300.0*collided -20.0*intersection_offroad - 10.0*intersection_otherlane
       return_ = discounted_return.discounted_return(rewards, length, discount)[:, 0]           # shape: (1000,)
       return_ = tf.reshape(return_, (original_batch, amount))                                 # shape: (1, 1000)
 

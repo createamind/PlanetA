@@ -207,7 +207,12 @@ def compute_losses(
       loss = tf.reduce_sum(loss, 1) / tf.reduce_sum(tf.to_float(mask), 1)
     elif key in heads:
       output = heads[key](features)   # decoder is used.
-      loss = -tools.mask(output.log_prob(target[key]), mask)
+      if key == 'collided':
+          y=tf.cast(target[key], tf.int32)
+          y = tf.one_hot(y,2)
+          loss = tools.mask(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=output, name=None),mask)
+      else:
+          loss = -tools.mask(output.log_prob(target[key]), mask)
     else:
       message = "Loss scale of head '{}' is not used."
       print(message.format(key))
