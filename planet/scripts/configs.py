@@ -130,8 +130,8 @@ def _loss_functions(config, params):
 
   if not PLANNING:
       # loss weights for angular_speed_degree.
-      config.zero_step_losses.reward = 6.0
-      config.overshooting_losses.reward = 60.0
+      config.zero_step_losses.reward = 1.0
+      config.overshooting_losses.reward = 10.0
       config.zero_step_losses.angular_speed_degree = 1.0
       config.overshooting_losses.angular_speed_degree = 10.0
       config.zero_step_losses.forward_speed = 1.0

@@ -60,13 +60,17 @@ def cross_entropy_method(
 
     # objectives
     objectives = objective_fn(state)   # shape: ['reward':shape(1000,12), 'angular_speed_degree':shape(1000,12), ...]
-    reward = objectives['reward']
-    angular_speed = objectives['angular_speed_degree']
-    forward_speed = objectives['forward_speed']   # m/s
-    collided = objectives['collided']
-    intersection_offroad = objectives['intersection_offroad']
-    intersection_otherlane = objectives['intersection_otherlane']
-
+    
+    if not PLANNING:
+      reward = objectives['reward']
+      angular_speed = objectives['angular_speed_degree']
+    if PLANNING:
+      reward = objectives['reward']
+      angular_speed = objectives['angular_speed_degree']
+      forward_speed = objectives['forward_speed']  # m/s
+      collided = objectives['collided']
+      intersection_offroad = objectives['intersection_offroad']
+      intersection_otherlane = objectives['intersection_otherlane']
 
     # #################    #1. define reward for planning
     # return_ = discounted_return.discounted_return(

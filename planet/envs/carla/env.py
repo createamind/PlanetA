@@ -515,6 +515,7 @@ class CarlaEnv(gym.Env):
             print("Next command", py_measurements["next_command"])
         print("Next command", py_measurements["next_command"])
         print("dist_to_intersection:", py_measurements["dist_to_intersection"])
+        print("forward_speed:", py_measurements["forward_speed"])
 
         if type(action) is np.ndarray:
             py_measurements["action"] = [float(a) for a in action]
