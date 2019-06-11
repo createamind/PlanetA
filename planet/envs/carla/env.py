@@ -28,7 +28,11 @@ import random
 
 from planet import REWARD_FUNC, IMG_SIZE,  USE_SENSOR, SCENARIO
 
-exec('from .scenarios import '+ SCENARIO + ' as SCENARIO')
+
+if __name__ == "__main__":
+    exec('from scenarios import '+ SCENARIO + ' as SCENARIO')
+else:
+    exec('from .scenarios import ' + SCENARIO + ' as SCENARIO')
 
 # from .scenarios import TOWN2_NPC, TOWN2_WEATHER, TOWN2_WEATHER_NPC,\
 #     LANE_KEEP, TOWN2_ALL, TOWN2_ONE_CURVE, TOWN2_ONE_CURVE_0, TOWN2_ONE_CURVE_STRAIGHT_NAV,TOWN2_STRAIGHT_DYNAMIC_0, TOWN2_STRAIGHT_0
@@ -93,8 +97,8 @@ ENV_CONFIG = {
     "framestack": 1,  # note: only [1, 2] currently supported
     "early_terminate_on_collision": True,
     "reward_function": REWARD_FUNC,
-    "render_x_res": 400, #800,
-    "render_y_res": 175, #600,
+    "render_x_res": 800, # 400, #
+    "render_y_res": 600, # 175, #
     "x_res": 64,  # cv2.resize()
     "y_res": 64,  # cv2.resize()
     "server_map": "/Game/Maps/Town02",
@@ -366,9 +370,14 @@ class CarlaEnv(gym.Env):
                                    self.config["render_y_res"])
             # camera2.set_position(30, 0, 130)
             # camera2.set_position(0.3, 0.0, 1.3)
-            camera2.set(FOV=120)
-            camera2.set_position(2.0, 0.0, 1.4)
-            camera2.set_rotation(0.0, 0.0, 0.0)
+
+            camera2.set_position(1.0, 0.0, 1.3)
+
+            # camera2.set_position(2.15, 0.0, 0.5)  # for radar
+
+            # camera2.set(FOV=110)
+            # camera2.set_position(1.5, 0.0, 1.4)
+            # camera2.set_rotation(0.0, 0.0, 0.0)
 
             settings.add_sensor(camera2)
 
@@ -545,7 +554,7 @@ class CarlaEnv(gym.Env):
         # done or not
         # done = False
         # done = self.cnt1 > 50 and (py_measurements["collision_vehicles"] or py_measurements["collision_pedestrians"] or py_measurements["collision_other"] or self.displacement < 0.5)
-        done = self.cnt1 > 50 and self.displacement < 0.2
+        done = self.cnt1 > 50 and self.displacement < 0.25
 
         # done = (self.num_steps > self.scenario["max_steps"]
         #         or py_measurements["next_command"] == "REACH_GOAL" or py_measurements["intersection_offroad"] or py_measurements["intersection_otherlane"]
@@ -747,7 +756,7 @@ class CarlaEnv(gym.Env):
 
 
         # displacement
-        if self.cnt1 > 70 and self.cnt1 % 30 == 0:
+        if self.cnt1 > 50 and self.cnt1 % 10 == 0:
             self.displacement = float(
                 np.linalg.norm([
                     cur.transform.location.x - self.pre_pos.x,
@@ -984,10 +993,10 @@ def compute_reward_custom3(env, prev, current):
         reward -= 300.0
 
     # Sidewalk intersection [0, 1]
-    reward -= 5 * (current["forward_speed"]+1.0) * current["intersection_offroad"]
+    reward -= 10 * (current["forward_speed"]+1.0) * current["intersection_offroad"]
     # print(current["intersection_offroad"])
     # Opposite lane intersection
-    reward -= 2 * (current["forward_speed"]+1.0) * current["intersection_otherlane"]  # [0 ~ 1]
+    reward -= 10 * (current["forward_speed"]+1.0) * current["intersection_otherlane"]  # [0 ~ 1]
 
     return reward
 
@@ -1119,7 +1128,7 @@ if __name__ == "__main__":
             # obs, reward, done, info = env.step([0.5, steer_commd])
 
             # fixed command.
-            obs, reward, done, info = env.step([0.5, 0.0])
+            obs, reward, done, info = env.step([0.7, 0.0])
 
         total_reward += reward
         # print(i, "reward", reward, "total", total_reward, "done", done)
