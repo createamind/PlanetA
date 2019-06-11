@@ -46,6 +46,7 @@ def cross_entropy_method(
   info_cmd = tf.squeeze(info_cmd)   # shape(3,)
   cmd_id, goal_heading_degree, current_heading_degree, dist_to_intersection = info_cmd[0],info_cmd[1],info_cmd[2],info_cmd[3]
 
+
   def iteration(mean_and_stddev, _):
     mean, stddev = mean_and_stddev
     # Sample action proposals from belief.
@@ -154,4 +155,10 @@ def cross_entropy_method(
   mean, stddev = tf.scan(
       iteration, tf.range(iterations), (mean, stddev), back_prop=False)
   mean, stddev = mean[-1], stddev[-1]  # Select belief at last iterations.
+
+
+  # # some propability for using expert action instead of planned action
+  # mean = tf.where(1<1,mean,expert_action)
+
+
   return mean

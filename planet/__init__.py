@@ -198,60 +198,32 @@ from __future__ import print_function
 
 ##########################################
 
+# TASK_NAME="{tasks: [carla]}"; ENABLE_EXPERT=False; PLANNING=False
+# STATES = ['reward','angular_speed_degree']#,'collided','forward_speed','intersection_offroad','intersection_otherlane']
+# IMG_SIZE = (128, 128)
+# H_SIZE, S_SIZE = 200, 50
+# EPISODE_LEN, COLLECT_EPISODE = 200, 300000.0
+# REPEATE = 1
+# NUM_SEED = 5
+# NUM_GPU, BATCHSIZE, CHUNK_LEN = 1, 50, 30
+# REWARD_FUNC = 'custom3'
+# USE_SENSOR, NUM_CHANNELS ='use_rgb', 3  # 'use_2rgb', 6  #
+# SCENARIO = 'TOWN2_CARS' #'TOWN2_ONE_CURVE_STRAIGHT_NAV' # 'TOWN2_NPC'  #    'TOWN2_WEATHER_NPC'  #
+# LOGDIR = '~/Data/planet/carla128_a'
+
+
 TASK_NAME="{tasks: [carla]}"; ENABLE_EXPERT=False; PLANNING=False
 STATES = ['reward','angular_speed_degree']#,'collided','forward_speed','intersection_offroad','intersection_otherlane']
 IMG_SIZE = (128, 128)
 H_SIZE, S_SIZE = 200, 50
 EPISODE_LEN, COLLECT_EPISODE = 200, 300000.0
 REPEATE = 1
-NUM_SEED = 5
-NUM_GPU, BATCHSIZE, CHUNK_LEN = 1, 50, 30
+NUM_SEED = 1
+NUM_GPU, BATCHSIZE, CHUNK_LEN = 1, 5, 5
 REWARD_FUNC = 'custom3'
 USE_SENSOR, NUM_CHANNELS ='use_rgb', 3  # 'use_2rgb', 6  #
 SCENARIO = 'TOWN2_CARS' #'TOWN2_ONE_CURVE_STRAIGHT_NAV' # 'TOWN2_NPC'  #    'TOWN2_WEATHER_NPC'  #
-LOGDIR = '~/Data/planet/carla128_a'
-
-
-# TASK_NAME="{tasks: [carla]}"; ENABLE_EXPERT=False; PLANNING=False
-# STATES = ['reward','angular_speed_degree']#,'forward_speed','collided','intersection_offroad','intersection_otherlane']
-# IMG_SIZE = (128, 128)
-# H_SIZE, S_SIZE = 200, 50
-# EPISODE_LEN, COLLECT_EPISODE = 200, 300000.0
-# REPEATE = 1
-# NUM_SEED = 5
-# NUM_GPU, BATCHSIZE, CHUNK_LEN = 2, 50, 30
-# REWARD_FUNC = 'custom3'
-# USE_SENSOR, NUM_CHANNELS ='use_2rgb', 6  # 'use_rgb', 3  #
-# SCENARIO = 'TOWN2_CARS' # 'TOWN2_NPC'  # 'TOWN2_ONE_CURVE_STRAIGHT_NAV' #   'TOWN2_WEATHER_NPC'  #
-# LOGDIR = '~/Data/planet/carla128_weight1-1_30_200_90'
-
-
-# TASK_NAME="{tasks: [carla]}"; ENABLE_EXPERT=False; PLANNING=True
-# STATES = ['reward','angular_speed_degree','forward_speed','collided','intersection_offroad','intersection_otherlane']
-# IMG_SIZE = (128, 128)
-# H_SIZE, S_SIZE = 200, 30
-# EPISODE_LEN, COLLECT_EPISODE = 600, 300000.0
-# REPEATE, NUM_SEED = 1, 1
-# NUM_GPU, BATCHSIZE, CHUNK_LEN = 1, 50, 50
-# REWARD_FUNC = 'custom3'
-# USE_SENSOR = 'use_rgb'
-# NUM_CHANNELS = 3
-# SCENARIO = 'TOWN2_NPC'  # 'TOWN2_ONE_CURVE_STRAIGHT_NAV' #  'TOWN2_WEATHER_NPC'  #
-# LOGDIR = '~/Data/planet/carla128_planning'
-
-
-# TASK_NAME = "{tasks: [carla]}"; ENABLE_EXPERT = False; PLANNING=False
-# STATES = ['reward','angular_speed_degree','forward_speed','collided','intersection_offroad','intersection_otherlane']
-# IMG_SIZE = (128, 128)
-# H_SIZE, S_SIZE = 200, 30
-# EPISODE_LEN, COLLECT_EPISODE = 300, 300000.0
-# REPEATE, NUM_SEED = 1, 1
-# NUM_GPU, BATCHSIZE, CHUNK_LEN = 1, 30, 30
-# REWARD_FUNC = 'custom3'
-# USE_SENSOR = 'use_rgb'
-# NUM_CHANNELS = 3
-# SCENARIO = 'TOWN2_NPC'  #'TOWN2_ONE_CURVE_STRAIGHT_NAV' #   'TOWN2_WEATHER_NPC'  #
-# LOGDIR = '~/Data/planet/carla128NPC_all' # carla_test128_angular'
+LOGDIR = '~/Data/planet/carla128_test1'
 
 
 #############################################
