@@ -224,6 +224,14 @@ class CarlaEnv(gym.Env):
                 shape=(config["y_res"], config["x_res"],
                        2 * 3 * config["framestack"]),
                 dtype=np.uint8)
+        elif config["use_sensor"] == 'use_rgb_semantic':
+            image_space = Box(
+                0,
+                255,
+                shape=(config["y_res"], config["x_res"],
+                       (3+1) * config["framestack"]),
+                dtype=np.uint8)
+
 
         # The Observation Space
         self.observation_space = Tuple(
@@ -398,6 +406,18 @@ class CarlaEnv(gym.Env):
             camera_r.set_rotation(0.0, 0.0, 0.0)
             settings.add_sensor(camera_r)
 
+        if self.config["use_sensor"] == 'use_rgb_semantic':
+            camera_rgb = Camera("Camera_rgb")
+            camera_rgb.set_image_size(self.config["render_x_res"],
+                                   self.config["render_y_res"])
+            camera_rgb.set_position(1.0, 0.0, 1.3)
+            settings.add_sensor(camera_rgb)
+
+            camera_semantic = Camera("Camera_semantic", PostProcessing="SemanticSegmentation")
+            camera_semantic.set_image_size(self.config["render_x_res"],
+                                   self.config["render_y_res"])
+            camera_semantic.set_position(1.0, 0.0, 1.3)
+            settings.add_sensor(camera_semantic)
 
         # Setup start and end positions
         scene = self.client.load_settings(settings)
@@ -640,7 +660,7 @@ class CarlaEnv(gym.Env):
             # data = (data.astype(np.float32) - 128) / 128
 
         elif self.config["use_sensor"] == 'use_2rgb':
-            data_l, data_r= image[0].data, image[0].data
+            data_l, data_r= image[0].data, image[1].data
             data_l = data_l.reshape(self.config["render_y_res"],
                                       self.config["render_x_res"], 3)
             data_r = data_r.reshape(self.config["render_y_res"],
@@ -654,6 +674,22 @@ class CarlaEnv(gym.Env):
 
             data = np.concatenate((data_l, data_r), axis=2)    # data: uint8(0 ~ 255),  shape(y_res, x_res, 6)
 
+        elif self.config["use_sensor"] == 'use_rgb_semantic':
+            data_rgb, data_semantic= image[0].data, image[1].data
+            data_rgb = data_rgb.reshape(self.config["render_y_res"],
+                                      self.config["render_x_res"], 3)
+            data_semantic = data_semantic.reshape(self.config["render_y_res"],
+                                      self.config["render_x_res"], 1)
+            # data_rgb = cv2.resize(
+            #     data_rgb, (self.config["x_res"], self.config["y_res"]),
+            #     interpolation=cv2.INTER_AREA)
+            # data_semantic = cv2.resize(
+            #     data_semantic, (self.config["x_res"], self.config["y_res"]),
+            #     interpolation=cv2.INTER_AREA)
+            #
+            # data = np.concatenate((data_rgb, data_semantic), axis=2)    # data: uint8(0 ~ 255),  shape(y_res, x_res, 6)
+
+            data = cv2.resize(np.concatenate((data_rgb, data_semantic), axis=2), (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
 
         return data
 
@@ -682,11 +718,17 @@ class CarlaEnv(gym.Env):
         elif self.config["use_sensor"] == 'use_2rgb':
             camera_name = ["CameraRGB_L","CameraRGB_R"]
 
+        elif self.config["use_sensor"] == 'use_rgb_semantic':
+            camera_name = ["Camera_rgb", "Camera_semantic"]
+
         # for name, image in sensor_data.items():
         #     if name == camera_name:
         #         observation = image
         if camera_name == ["CameraRGB_L","CameraRGB_R"]:
             observation = [sensor_data["CameraRGB_L"], sensor_data["CameraRGB_R"]]
+        elif camera_name == ["Camera_rgb", "Camera_semantic"]:
+            observation = [sensor_data["Camera_rgb"], sensor_data["Camera_semantic"]]
+
         else:
             observation = sensor_data[camera_name]
 
