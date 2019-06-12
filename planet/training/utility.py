@@ -297,6 +297,7 @@ def simulate_episodes(config, params, graph, name):
 
 
 def print_metrics(metrics, step, every):
+  every = every if every != 0 else 1
   means, updates = [], []
   for key, value in metrics:
     mean = tools.StreamingMean((), tf.float32, 'mean_{}'.format(key))

@@ -546,6 +546,7 @@ class CarlaEnv(gym.Env):
         print("dist_to_intersection:", py_measurements["dist_to_intersection"])
         print("forward_speed:", py_measurements["forward_speed"])
 
+
         if type(action) is np.ndarray:
             py_measurements["action"] = [float(a) for a in action]
         else:
@@ -570,6 +571,8 @@ class CarlaEnv(gym.Env):
         self.total_reward += reward
         py_measurements["reward"] = reward
         py_measurements["total_reward"] = self.total_reward
+        print("total_reward:", py_measurements["total_reward"])
+
 
         # done or not
         # done = False

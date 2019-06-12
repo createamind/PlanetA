@@ -17,6 +17,8 @@ def main(args):
 
 class Experiment(object):
     def __iter__(self):
+        run = Run(...)
+        yield run
 
 num_runs
 
@@ -29,7 +31,7 @@ class Run(object):
 
         # planet/scripts/train.py
         def start(logdir, args):
-            config = getattr(configs, args.config)(config, args.params)  # configs.(args.config) = configs.default, task is defined.
+            config = getattr(configs, args.config)(config, args.params)            # configs.(args.config) = configs.default, task is defined.
             training.utility.collect_initial_episodes(config)
 
             # planet/training/utility.py
@@ -58,7 +60,7 @@ class Run(object):
                 yield score
 
             # planet/training/utility.py
-            def train(model_fn, datasets, logdir, config):
+            def train(model_fn, datasets, logdir, config):               ### Training...
                 trainer = trainer_.Trainer(logdir, config=config)        #  trainer_ is trainer.py
                 data = get_batch(datasets, trainer.phase, trainer.reset)
                 score, summary = model_fn(data, trainer, config)         #  model_fn is training.define_model.

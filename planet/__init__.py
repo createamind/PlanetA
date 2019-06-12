@@ -205,11 +205,11 @@ from __future__ import print_function
 # EPISODE_LEN, COLLECT_EPISODE = 200, 300000.0
 # REPEATE = 1
 # NUM_SEED = 5
-# NUM_GPU, BATCHSIZE, CHUNK_LEN = 1, 50, 30
+# NUM_GPU, BATCHSIZE, CHUNK_LEN = 1, 30, 30
 # REWARD_FUNC = 'custom3'
 # USE_SENSOR, NUM_CHANNELS ='use_rgb', 3  # 'use_2rgb', 6  #
-# SCENARIO = 'TOWN2_CARS' #'TOWN2_ONE_CURVE_STRAIGHT_NAV' # 'TOWN2_NPC'  #    'TOWN2_WEATHER_NPC'  #
-# LOGDIR = '~/Data/planet/carla128_a'
+# SCENARIO = 'TOWN2_ONE_CURVE_STRAIGHT_NAV' #'TOWN2_CARS'             ###'TOWN2_NPC' # TOWN2_WEATHER_NPC'  #
+# LOGDIR = '~/Data/planet/carla128_30_30_nocar_E2'
 
 
 TASK_NAME="{tasks: [carla]}"; ENABLE_EXPERT=False; PLANNING=False
