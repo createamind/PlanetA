@@ -245,9 +245,9 @@ class Trainer(object):
     Returns:
       Tuple of phase object, epoch number, and phase steps within the epoch.
     """
-    epoch_size = sum(phase.steps for phase in self._phases)
+    epoch_size = sum(phase.steps for phase in self._phases)    # 1 epoch = 1 train phase + 1 test phase
     epoch = int(global_step // epoch_size)
-    steps_in = global_step % epoch_size
+    steps_in = global_step % epoch_size                        # steps in a phase
     for phase in self._phases:
       if steps_in < phase.steps:
         return phase, epoch, steps_in

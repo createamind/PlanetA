@@ -395,12 +395,11 @@ class PadActions(object):
 class CollectGymDataset(object):
   """Collect transition tuples and store episodes as Numpy files."""
 
-  def __init__(self, env, outdir, enable_expert_acion = False):
+  def __init__(self, env, outdir):
     self._env = env
     self._outdir = outdir and os.path.expanduser(outdir)
     self._episode = None
     self._transition = None
-    self.enable_expert_acion = enable_expert_acion
 
   def __getattr__(self, name):
     return getattr(self._env, name)
@@ -422,10 +421,7 @@ class CollectGymDataset(object):
       return lambda: self._process_reset(future())
 
   def _process_step(self, action, observ, reward, done, info):
-    if not self.enable_expert_acion:
-      self._transition.update({'action': action, 'reward': reward})
-    else:
-      self._transition.update({'action': info['expert_action'], 'reward': reward})
+    self._transition.update({'action': info['action'], 'reward': reward})
     self._transition.update(info)
     self._episode.append(self._transition)
     self._transition = {}

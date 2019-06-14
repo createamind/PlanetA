@@ -27,7 +27,7 @@ from planet import models
 from planet import networks
 from planet import tools
 from planet.scripts import tasks as tasks_lib
-from planet import BATCHSIZE, CHUNK_LEN, NUM_SEED, H_SIZE, S_SIZE, PLANNING
+from planet import BATCHSIZE, CHUNK_LEN, NUM_SEED, H_SIZE, S_SIZE, PLANNING, TESTING
 
 # with config.unlocked:
 def default(config, params):   # config={}, params = {'tasks': ['breakout'], 'logdir': './log_testing/00001'}
@@ -166,7 +166,7 @@ def _loss_functions(config, params):
 
 
 def _training_schedule(config, params):
-  config.train_steps = int(params.get('train_steps', 50000))  # train_steps for each epoch
+  config.train_steps = int(params.get('train_steps', 500 if TESTING else 50000))  # train_steps for each epoch
   config.test_steps = int(params.get('test_steps', 100))      # test_steps for each epoch
   config.max_steps = int(params.get('max_steps', 2e8))        # steps for each run
   config.train_log_every = config.train_steps
@@ -233,8 +233,8 @@ def _active_collection(config, params):
       sim = _define_simulation(task, config, params, horizon, batch_size)
       sim.unlock()
       sim.save_episode_dir = config.train_dir
-      sim.steps_after = params.get('collect_every', 5000)    # sim after 5000 steps
-      sim.steps_every = params.get('collect_every', 5000)    # sim every 5000 steps
+      sim.steps_after = params.get('collect_every', 5 if TESTING else 5000)    # sim after 5000 steps
+      sim.steps_every = params.get('collect_every', 5 if TESTING else 5000)    # sim every 5000 steps
       sim.exploration = tools.AttrDict(
           scale=params.get('exploration_noises', [0.3])[index],
           schedule=functools.partial(

@@ -89,7 +89,7 @@ class Run(object):
                                                         env = batch_env.BatchEnv(envs, blocking=not env_processes)
                                                         env = in_graph_batch_env.InGraphBatchEnv(env)
                                                         return env
-                                                age nt = mpc_agent.MPCAgent(batch_env, step, False, False, agent_config)
+                                                agent = mpc_agent.MPCAgent(batch_env, step, False, False, agent_config)
                                                 def simulate_fn(unused_last, step):
                                                     done, score, unused_summary = simulate_step( batch_env, agent, log=False, reset=tf.equal(step, 0))
                                                 done, score, image, action, reward = tf.scan( simulate_fn, tf.range(duration), initializer, parallel_iterations=1)

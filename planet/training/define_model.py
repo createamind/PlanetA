@@ -176,7 +176,7 @@ def define_model(data, trainer, config):
       should_collect = tf.logical_and(
           tf.equal(phase, 'train'),
           tools.schedule.binary(step, config.batch_shape[0], after, every))
-      collect_summary, _ = tf.cond(
+      collect_summary, score_train = tf.cond(
           should_collect,
           functools.partial(
               utility.simulate_episodes, config, params, graph, name),
@@ -200,7 +200,7 @@ def define_model(data, trainer, config):
         cell.dist_from_state(zs_posterior, zs_mask).entropy(), zs_mask)) /
         tf.reduce_sum(tf.to_float(zs_mask)))
     dependencies.append(utility.print_metrics((
-        ('score', score),
+        ('score', score_train),
         ('loss', loss),
         ('zs_entropy', zs_entropy),
         ('zs_divergence', zero_step_losses['divergence']),

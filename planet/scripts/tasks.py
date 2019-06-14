@@ -304,7 +304,7 @@ class DeepMindWrapper_carla(object):
     obs = {'angular_speed_degree': info["angular_speed_degree"], 'forward_speed': info['forward_speed'], \
            'collided': info['collided'], 'intersection_offroad': info['intersection_offroad'], 'intersection_otherlane': info['intersection_otherlane']}
 
-    _info = {'next_command_id': info['next_command_id']} if not ENABLE_EXPERT else {'next_command_id': info['next_command_id'], 'expert_action':np.array(info['action'])}
+    _info = {'next_command_id': info['next_command_id'], 'action':np.array(info['action'])}
     _info['goal_heading_degree'] = info["goal_heading_degree"]
     _info['current_heading_degree'] = info["current_heading_degree"]
     _info['dist_to_intersection'] = info["dist_to_intersection"]
@@ -334,7 +334,7 @@ def _dm_control_env_carla(action_repeat, max_length, env_name, img_size):
   assert env_name == 'carla'
   from planet.envs.carla.env import CarlaEnv
   def env_ctor():
-    env = CarlaEnv(enable_autopilot=ENABLE_EXPERT)
+    env = CarlaEnv()
     env = DeepMindWrapper_carla(env, img_size)
     env = control.wrappers.ActionRepeat(env, action_repeat)    # reward: sum the rewards of each repeated action
     env = control.wrappers.LimitDuration(env, max_length)

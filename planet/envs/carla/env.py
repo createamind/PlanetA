@@ -26,8 +26,9 @@ import gym
 from gym.spaces import Box, Discrete, Tuple
 import random
 
-from planet import REWARD_FUNC, IMG_SIZE,  USE_SENSOR, SCENARIO
+from planet import REWARD_FUNC, IMG_SIZE,  USE_SENSOR, SCENARIO, ENABLE_EXPERT
 
+expert_probability = ENABLE_EXPERT
 
 if __name__ == "__main__":
     exec('from scenarios import '+ SCENARIO + ' as SCENARIO')
@@ -162,8 +163,8 @@ atexit.register(cleanup)
 
 
 class CarlaEnv(gym.Env):
-    def __init__(self, config=ENV_CONFIG, enable_autopilot = False):
-        self.enable_autopilot = enable_autopilot
+    def __init__(self, config=ENV_CONFIG):
+        self.enable_autopilot = False
         self.config = config
         self.config["x_res"], self.config["y_res"] = IMG_SIZE
         self.city = self.config["server_map"].split("/")[-1]
@@ -329,6 +330,7 @@ class CarlaEnv(gym.Env):
         self.prev_image = None
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
+        self.enable_autopilot = np.random.random()<expert_probability
 
 
         self.pre_intersection = np.array([0.0, 0.0])
@@ -1186,7 +1188,8 @@ def collided_done(py_measurements):
 
 if __name__ == "__main__":
 
-    env = CarlaEnv(enable_autopilot=True)
+    env = CarlaEnv()
+    expert_probability = 0.5
     obs = env.reset()
     print("reset")
     start = time.time()
@@ -1210,7 +1213,7 @@ if __name__ == "__main__":
             # obs, reward, done, info = env.step([0.5, steer_commd])
 
             # fixed command.
-            obs, reward, done, info = env.step([0.7, 0.0])
+            obs, reward, done, info = env.step([1.0, 0.0])
 
         total_reward += reward
         # print(i, "reward", reward, "total", total_reward, "done", done)

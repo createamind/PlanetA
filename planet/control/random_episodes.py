@@ -21,7 +21,7 @@ from planet import ENABLE_EXPERT
 
 def random_episodes(env_ctor, num_episodes, output_dir=None):
   env = env_ctor()  # env is an <ExternalProcess object>.
-  env = wrappers.CollectGymDataset(env, output_dir, enable_expert_acion=ENABLE_EXPERT)
+  env = wrappers.CollectGymDataset(env, output_dir)
   episodes = []
   for _ in range(num_episodes):
     policy = lambda env, obs: env.action_space.sample()
