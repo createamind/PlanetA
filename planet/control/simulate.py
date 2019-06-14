@@ -36,7 +36,7 @@ def simulate(
     return_, image, action, reward = collect_rollouts(
         step=step,
         env_ctor=env_ctor,
-        duration=duration,
+        duration=duration,   # i.e. max_length
         num_agents=num_agents,
         agent_config=agent_config,
         env_processes=env_processes)

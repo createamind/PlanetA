@@ -198,6 +198,20 @@ from __future__ import print_function
 
 ##########################################
 
+TASK_NAME="{tasks: [carla]}"; ENABLE_EXPERT=False; PLANNING=False
+STATES = ['reward','angular_speed_degree']#,'collided','forward_speed','intersection_offroad','intersection_otherlane']
+IMG_SIZE = (128, 128)
+H_SIZE, S_SIZE = 200, 50
+EPISODE_LEN, COLLECT_EPISODE = 200, 300000.0
+REPEATE = 1
+NUM_SEED = 5
+NUM_GPU, BATCHSIZE, CHUNK_LEN = 1, 30, 30
+REWARD_FUNC = 'custom3'
+USE_SENSOR, NUM_CHANNELS ='use_rgb', 3  # 'use_2rgb', 6  #
+SCENARIO = 'TOWN2_ONE_CURVE_STRAIGHT_NAV' #'TOWN2_CARS' #              ###'TOWN2_NPC' # TOWN2_WEATHER_NPC'  #
+LOGDIR = '~/Data/planet/carla128_30_30_nocar_E3'
+
+
 # TASK_NAME="{tasks: [carla]}"; ENABLE_EXPERT=False; PLANNING=False
 # STATES = ['reward','angular_speed_degree']#,'collided','forward_speed','intersection_offroad','intersection_otherlane']
 # IMG_SIZE = (128, 128)
@@ -207,23 +221,23 @@ from __future__ import print_function
 # NUM_SEED = 5
 # NUM_GPU, BATCHSIZE, CHUNK_LEN = 1, 30, 30
 # REWARD_FUNC = 'custom3'
+# USE_SENSOR, NUM_CHANNELS ='use_2rgb', 6  #'use_rgb', 3  #
+# SCENARIO = 'TOWN2_CARS' # 'TOWN2_ONE_CURVE_STRAIGHT_NAV' #             ###'TOWN2_NPC' # TOWN2_WEATHER_NPC'  #
+# LOGDIR = '~/Data/planet/carla128_30_30_2rgb_car_E1'
+
+
+# TASK_NAME="{tasks: [carla]}"; ENABLE_EXPERT=False; PLANNING=False
+# STATES = ['reward','angular_speed_degree']#,'collided','forward_speed','intersection_offroad','intersection_otherlane']
+# IMG_SIZE = (128, 128)
+# H_SIZE, S_SIZE = 200, 50
+# EPISODE_LEN, COLLECT_EPISODE = 10, 300000.0
+# REPEATE = 1
+# NUM_SEED = 1
+# NUM_GPU, BATCHSIZE, CHUNK_LEN = 1, 5, 5
+# REWARD_FUNC = 'custom3'
 # USE_SENSOR, NUM_CHANNELS ='use_rgb', 3  # 'use_2rgb', 6  #
-# SCENARIO = 'TOWN2_ONE_CURVE_STRAIGHT_NAV' #'TOWN2_CARS'             ###'TOWN2_NPC' # TOWN2_WEATHER_NPC'  #
-# LOGDIR = '~/Data/planet/carla128_30_30_nocar_E2'
-
-
-TASK_NAME="{tasks: [carla]}"; ENABLE_EXPERT=False; PLANNING=False
-STATES = ['reward','angular_speed_degree']#,'collided','forward_speed','intersection_offroad','intersection_otherlane']
-IMG_SIZE = (128, 128)
-H_SIZE, S_SIZE = 200, 50
-EPISODE_LEN, COLLECT_EPISODE = 200, 300000.0
-REPEATE = 1
-NUM_SEED = 1
-NUM_GPU, BATCHSIZE, CHUNK_LEN = 1, 5, 5
-REWARD_FUNC = 'custom3'
-USE_SENSOR, NUM_CHANNELS ='use_rgb', 3  # 'use_2rgb', 6  #
-SCENARIO = 'TOWN2_CARS' #'TOWN2_ONE_CURVE_STRAIGHT_NAV' # 'TOWN2_NPC'  #    'TOWN2_WEATHER_NPC'  #
-LOGDIR = '~/Data/planet/carla128_test1'
+# SCENARIO = 'TOWN2_CARS' #'TOWN2_ONE_CURVE_STRAIGHT_NAV' # 'TOWN2_NPC'  #    'TOWN2_WEATHER_NPC'  #
+# LOGDIR = '~/Data/planet/carla128_test1'
 
 
 #############################################

@@ -92,6 +92,7 @@ ENV_CONFIG = {
     "log_images": False,  # log images in _read_observation().
     "convert_images_to_video": False,  # convert log_images to videos. when "verbose" is True.
     "verbose": False,    # print measurement information; write out measurement json file.
+    "use_radar": True,
 
     "enable_planner": True,
     "framestack": 1,  # note: only [1, 2] currently supported
@@ -273,7 +274,7 @@ class CarlaEnv(gym.Env):
         self.server_process = subprocess.Popen(
             [
                 SERVER_BINARY, self.config["server_map"], "-windowed",
-                "-ResX=480", "-ResY=360", "-carla-server", "-benchmark -fps=10",   # "-benchmark -fps=10": to run the simulation at a fixed time-step of 0.1 seconds
+                "-ResX=800", "-ResY=600", "-carla-server", "-benchmark -fps=10",   # "-benchmark -fps=10": to run the simulation at a fixed time-step of 0.1 seconds
                 "-carla-world-port={}".format(self.server_port)
             ],
             preexec_fn=os.setsid,
@@ -329,6 +330,7 @@ class CarlaEnv(gym.Env):
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
 
+
         self.pre_intersection = np.array([0.0, 0.0])
 
         # Create a CarlaSettings object. This object is a wrapper around
@@ -346,6 +348,14 @@ class CarlaEnv(gym.Env):
             NumberOfPedestrians=self.scenario["num_pedestrians"],
             WeatherId=self.weather)
         settings.randomize_seeds()
+
+        if ENV_CONFIG["use_radar"]:
+            camera_radar = Camera("Camera_radar", PostProcessing="Depth")
+            camera_radar.set_image_size(self.config["render_x_res"],
+                                   self.config["render_y_res"])
+            camera_radar.set_position(2.15, 0.0, 0.5)
+
+            settings.add_sensor(camera_radar)
 
 
         if self.config["use_sensor"] == 'use_semantic':
@@ -379,9 +389,9 @@ class CarlaEnv(gym.Env):
             # camera2.set_position(30, 0, 130)
             # camera2.set_position(0.3, 0.0, 1.3)
 
-            camera2.set_position(1.0, 0.0, 1.3)
+            # camera2.set_position(1.0, 0.0, 1.3)
 
-            # camera2.set_position(2.15, 0.0, 0.5)  # for radar
+            camera2.set_position(2.15, 0.0, 0.5)  # for radar
 
             # camera2.set(FOV=110)
             # camera2.set_position(1.5, 0.0, 1.4)
@@ -393,17 +403,19 @@ class CarlaEnv(gym.Env):
             camera_l = Camera("CameraRGB_L")
             camera_l.set_image_size(self.config["render_x_res"],
                                    self.config["render_y_res"])
-            camera_l.set(FOV=120)
-            camera_l.set_position(2.0, -0.1, 1.4)
-            camera_l.set_rotation(0.0, 0.0, 0.0)
+            camera_l.set_position(1.0, 0.0, 1.3)
+            # camera_l.set(FOV=120)
+            # camera_l.set_position(2.0, -0.1, 1.4)
+            # camera_l.set_rotation(0.0, 0.0, 0.0)
             settings.add_sensor(camera_l)
 
             camera_r = Camera("CameraRGB_R")
             camera_r.set_image_size(self.config["render_x_res"],
                                    self.config["render_y_res"])
-            camera_r.set(FOV=120)
-            camera_r.set_position(2.0, 0.1, 1.4)
-            camera_r.set_rotation(0.0, 0.0, 0.0)
+            camera_r.set_position(1.0, 0.0, 1.3)
+            # camera_r.set(FOV=120)
+            # camera_r.set_position(2.0, 0.1, 1.4)
+            # camera_r.set_rotation(0.0, 0.0, 0.0)
             settings.add_sensor(camera_r)
 
         if self.config["use_sensor"] == 'use_rgb_semantic':
@@ -460,6 +472,7 @@ class CarlaEnv(gym.Env):
 
         # Process observations: self._read_observation() returns image and py_measurements.
         image, py_measurements = self._read_observation()
+        py_measurements["collided"] = np.array(0.0, dtype=np.float32)
         self.prev_measurement = py_measurements
 
         # self.current_heading = self.pre_heading = np.array([py_measurements["x_orient"], py_measurements["y_orient"]])
@@ -509,9 +522,17 @@ class CarlaEnv(gym.Env):
             action = DISCRETE_ACTIONS[int(action)]  # Carla action is 2D.
         assert len(action) == 2, "Invalid action {}".format(action)
 
+        # autopilot
         if self.enable_autopilot:
-            action[0] = self.autopilot.brake if self.autopilot.brake < 0 else self.autopilot.throttle
+            if self.autopilot.brake < 0:
+                action[0] = self.autopilot.brake
+            elif self.prev_measurement["forward_speed"]*3.6 > 30:  # speed limit
+                action[0] = 0.0
+            else:
+                action[0] = self.autopilot.throttle
             action[1] = self.autopilot.steer
+
+
         if self.config["squash_action_logits"]:
             forward = 2 * float(sigmoid(action[0]) - 0.5)
             throttle = float(np.clip(forward, 0, 1))
@@ -577,7 +598,11 @@ class CarlaEnv(gym.Env):
         # done or not
         # done = False
         # done = self.cnt1 > 50 and (py_measurements["collision_vehicles"] or py_measurements["collision_pedestrians"] or py_measurements["collision_other"] or self.displacement < 0.5)
-        done = self.cnt1 > 50 and self.displacement < 0.25
+        if self.enable_autopilot:
+            done = False
+        else:
+            # done = self.cnt1 > 50 and self.displacement < 0.25
+            done = self.cnt1 > 50 and self.displacement < 0.2
 
         # done = (self.num_steps > self.scenario["max_steps"]
         #         or py_measurements["next_command"] == "REACH_GOAL" or py_measurements["intersection_offroad"] or py_measurements["intersection_otherlane"]
@@ -586,6 +611,7 @@ class CarlaEnv(gym.Env):
 
         py_measurements["done"] = done
         self.prev_measurement = py_measurements
+        py_measurements["collided"]=collision_(self.prev_measurement, py_measurements)  ###
 
         # Write out measurements to file
         if self.config["verbose"] and CARLA_OUT_PATH:
@@ -735,6 +761,9 @@ class CarlaEnv(gym.Env):
         else:
             observation = sensor_data[camera_name]
 
+        if ENV_CONFIG["use_radar"]:
+            front_radar = sensor_data["Camera_radar"].data[300,200:600].min()*1000
+
 
 
         cur = measurements.player_measurements
@@ -801,7 +830,8 @@ class CarlaEnv(gym.Env):
 
 
         # displacement
-        if self.cnt1 > 50 and self.cnt1 % 10 == 0:
+        # if self.cnt1 > 50 and self.cnt1 % 10 == 0:
+        if self.cnt1 > 70 and self.cnt1 % 30 == 0:
             self.displacement = float(
                 np.linalg.norm([
                     cur.transform.location.x - self.pre_pos.x,
@@ -824,7 +854,7 @@ class CarlaEnv(gym.Env):
             "collision_vehicles": cur.collision_vehicles,
             "collision_pedestrians": cur.collision_pedestrians,
             "collision_other": cur.collision_other,
-            "collided": collision_(cur),                    ###
+            "front_radar": front_radar,
             "intersection_offroad": np.array(cur.intersection_offroad),     ###
             "intersection_otherlane": np.array(cur.intersection_otherlane), ###
             "weather": self.weather,
@@ -861,8 +891,11 @@ class CarlaEnv(gym.Env):
         assert observation is not None, sensor_data
         return observation, py_measurements
 
-def collision_(cur):
-    collided = (cur.collision_vehicles > 0 or cur.collision_pedestrians > 0 or cur.collision_other > 0)
+def collision_(prev, current):
+    collided = (
+        current["collision_vehicles"] + current["collision_pedestrians"] +
+        current["collision_other"] - prev["collision_vehicles"] -
+        prev["collision_pedestrians"] - prev["collision_other"])>0
     return np.array(collided, dtype=np.float32)
 
 
@@ -970,7 +1003,6 @@ def compute_reward_custom1(env, prev, current):
     # if current["next_command"] == "REACH_GOAL":
     #     reward += 200.0
     #     print('bro, you reach the goal, well done!!!')
-
     return reward
 
 
@@ -1028,20 +1060,25 @@ def compute_reward_custom3(env, prev, current):
     # reward += np.clip(current["forward_speed"]*3.6, 0.0, 30.0) / 10  # 3.6km/h = 1m/s
     reward += np.where(current["forward_speed"]*3.6 < 30.0, current["forward_speed"]*3.6/10, -0.3*current["forward_speed"]*3.6+12.0)
     # New collision damage
-    new_damage = (
-        current["collision_vehicles"] + current["collision_pedestrians"] +
-        current["collision_other"] - prev["collision_vehicles"] -
-        prev["collision_pedestrians"] - prev["collision_other"])
+    # new_damage = (
+    #     current["collision_vehicles"] + current["collision_pedestrians"] +
+    #     current["collision_other"] - prev["collision_vehicles"] -
+    #     prev["collision_pedestrians"] - prev["collision_other"])
+    collided = collision_(prev, current)
     # print(current["collision_other"], current["collision_vehicles"], current["collision_pedestrians"])
     # 0.0 41168.109375 0.0
-    if new_damage:
-        reward -= 300.0
+    if collided:
+        reward -= 100.0
+    else:
+        reward -= 0.0 if current["front_radar"]>2 else (100-current["front_radar"]*50)
 
     # Sidewalk intersection [0, 1]
     reward -= 10 * (current["forward_speed"]+1.0) * current["intersection_offroad"]
     # print(current["intersection_offroad"])
     # Opposite lane intersection
     reward -= 10 * (current["forward_speed"]+1.0) * current["intersection_otherlane"]  # [0 ~ 1]
+
+    # print("reward:", reward)
 
     return reward
 
@@ -1149,7 +1186,7 @@ def collided_done(py_measurements):
 
 if __name__ == "__main__":
 
-    env = CarlaEnv(enable_autopilot=False)
+    env = CarlaEnv(enable_autopilot=True)
     obs = env.reset()
     print("reset")
     start = time.time()
@@ -1184,6 +1221,7 @@ if __name__ == "__main__":
         print("angular_speed_degree:", info["angular_speed_degree"])
         print("dist_to_intersection:", info["dist_to_intersection"])
         print('collided:', info["collided"])
+        print('front_radar:',info["front_radar"] )
 
         if done:
             env.reset()
