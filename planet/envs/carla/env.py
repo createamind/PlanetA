@@ -391,9 +391,9 @@ class CarlaEnv(gym.Env):
             # camera2.set_position(30, 0, 130)
             # camera2.set_position(0.3, 0.0, 1.3)
 
-            # camera2.set_position(1.0, 0.0, 1.3)
+            camera2.set_position(1.0, 0.0, 1.5)
 
-            camera2.set_position(2.15, 0.0, 0.5)  # for radar
+            # camera2.set_position(2.15, 0.0, 0.5)  # for radar
 
             # camera2.set(FOV=110)
             # camera2.set_position(1.5, 0.0, 1.4)
@@ -405,7 +405,7 @@ class CarlaEnv(gym.Env):
             camera_l = Camera("CameraRGB_L")
             camera_l.set_image_size(self.config["render_x_res"],
                                    self.config["render_y_res"])
-            camera_l.set_position(1.0, 0.0, 1.3)
+            camera_l.set_position(1.0,-0.1, 1.5)
             # camera_l.set(FOV=120)
             # camera_l.set_position(2.0, -0.1, 1.4)
             # camera_l.set_rotation(0.0, 0.0, 0.0)
@@ -414,7 +414,7 @@ class CarlaEnv(gym.Env):
             camera_r = Camera("CameraRGB_R")
             camera_r.set_image_size(self.config["render_x_res"],
                                    self.config["render_y_res"])
-            camera_r.set_position(1.0, 0.0, 1.3)
+            camera_r.set_position(1.0, 0.1, 1.5)
             # camera_r.set(FOV=120)
             # camera_r.set_position(2.0, 0.1, 1.4)
             # camera_r.set_rotation(0.0, 0.0, 0.0)
