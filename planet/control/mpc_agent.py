@@ -55,7 +55,7 @@ class MPCAgent(object):
     with tf.control_dependencies(reset_state + (reset_prev_action,)):
       return tf.constant('')
 
-  def perform(self, agent_indices, observ):
+  def perform(self, agent_indices, observ, info)  :
     observ = self._config.preprocess_fn(observ)
     embedded = self._config.encoder({'image': observ[:, None]})[:, 0]
     state = nested.map(
@@ -66,7 +66,7 @@ class MPCAgent(object):
       use_obs = tf.ones(tf.shape(agent_indices), tf.bool)[:, None]
       _, state = self._cell((embedded, prev_action, use_obs), state)
     action = self._config.planner(
-        self._cell, self._config.objective, state, self._info_cmd,
+        self._cell, self._config.objective, state, info,
         embedded.shape[1:].as_list(),
         prev_action.shape[1:].as_list())
     action = action[:, 0]

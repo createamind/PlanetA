@@ -65,6 +65,7 @@ def collect_rollouts(
       image = batch_env.observ
       batch_action = batch_env.action
       batch_reward = batch_env.reward
+      # agent._info_cmd = batch_env._info
     return done, score, image, batch_action, batch_reward
 
   initializer = (
@@ -154,7 +155,7 @@ def simulate_step(batch_env, algo, log=True, reset=False):
     """
     prevob = batch_env.observ + 0  # Ensure a copy of the variable value.
     agent_indices = tf.range(len(batch_env))
-    action, step_summary = algo.perform(agent_indices, prevob)                 # get action from the planner.
+    action, step_summary = algo.perform(agent_indices, prevob, algo._info_cmd)                  # get action from the planner.
     action.set_shape(batch_env.action.shape)
     with tf.control_dependencies([batch_env.step(action)]):                    # interact with the env.
       add_score = score_var.assign_add(batch_env.reward)

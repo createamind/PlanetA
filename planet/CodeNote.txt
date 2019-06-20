@@ -92,24 +92,24 @@ class Run(object):
                                                 agent = mpc_agent.MPCAgent(batch_env, step, False, False, agent_config)
                                                 def simulate_fn(unused_last, step):
                                                     done, score, unused_summary = simulate_step( batch_env, agent, log=False, reset=tf.equal(step, 0))
-                                                done, score, image, action, reward = tf.scan( simulate_fn, tf.range(duration), initializer, parallel_iterations=1)
-                                                # III.
-                                                def simulate_step()
-                                                    ...
-                                                    _define_step()
-                                                    # IV.
-                                                    def _define_step():
-                                                        action, step_summary = algo.perform(agent_indices, prevob)    # get action from the planner.(algo = agent.)
-                                                        with tf.control_dependencies([batch_env.step(action)]):       # interact with the env.
-                                                            ...
-                                                            # planet_A/planet/control/mpc_agent.py
-                                                            class MPCAgent(object):
-                                                                ...
-                                                                def perform(self, agent_indices, observ):
-                                                                    action = self._config.planner(self._cell, self._config.objective, state,embedded.shape[1:].as_list(),prev_action.shape[1:].as_list())
-                                                                        # planet_A/planet/scripts/configs.py
-                                                                        def _define_simulation():
-                                                                            planner = functools.partial(control.planning.cross_entropy_method, ...)
+                                                done, score, image, action, reward = tf.scan( simulate_fn, tf.range(duration), initializer, parallel_iterations=1 )
+                                                    # III.
+                                                    def simulate_step()
+                                                        with tf.control_dependencies([begin_episode]):
+                                                            step, score, length = _define_step()
+                                                            # IV.
+                                                            def _define_step():
+                                                                action, step_summary = algo.perform(agent_indices, prevob)    # get action from the planner.(algo = agent.)
+                                                                with tf.control_dependencies([batch_env.step(action)]):       # interact with the env.
+                                                                    ...
+                                                                    # planet_A/planet/control/mpc_agent.py
+                                                                    class MPCAgent(object):
+                                                                        ...
+                                                                        def perform(self, agent_indices, observ):
+                                                                            action = self._config.planner(self._cell, self._config.objective, state, self._info_cmd, ...)
+                                                                                # planet_A/planet/scripts/configs.py
+                                                                                def _define_simulation():
+                                                                                    planner = functools.partial(control.planning.cross_entropy_method, ...)
 
                 trainer.add_phase(...)
                 trainer.add_phase(...)
