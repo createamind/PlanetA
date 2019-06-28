@@ -764,7 +764,7 @@ class CarlaEnv(gym.Env):
             observation = sensor_data[camera_name]
 
         if ENV_CONFIG["use_radar"]:
-            front_radar = sensor_data["Camera_radar"].data[300,200:600].min()*1000
+            front_radar = sensor_data["Camera_radar"].data[300].min()*1000
 
 
 
@@ -1060,19 +1060,22 @@ def compute_reward_custom3(env, prev, current):
     # Speed reward, up 30.0 (km/h)
     # reward += current["forward_speed"]*3.6/ 10.0  # 3.6km/h = 1m/s
     # reward += np.clip(current["forward_speed"]*3.6, 0.0, 30.0) / 10  # 3.6km/h = 1m/s
-    reward += np.where(current["forward_speed"]*3.6 < 30.0, current["forward_speed"]*3.6/10, -0.3*current["forward_speed"]*3.6+12.0)
+    # reward += np.where(current["forward_speed"]*3.6 < 30.0, current["forward_speed"]*3.6/10, -0.3*current["forward_speed"]*3.6+12.0)
+    reward += np.where(current["forward_speed"] * 3.6 < 40.0, current["forward_speed"] * 3.6 / 10, -0.4 * current["forward_speed"] * 3.6 + 20.0)
     # New collision damage
     # new_damage = (
     #     current["collision_vehicles"] + current["collision_pedestrians"] +
     #     current["collision_other"] - prev["collision_vehicles"] -
     #     prev["collision_pedestrians"] - prev["collision_other"])
-    collided = collision_(prev, current)
+
+    # collided = collision_(prev, current)
     # print(current["collision_other"], current["collision_vehicles"], current["collision_pedestrians"])
-    # 0.0 41168.109375 0.0
-    if collided:
-        reward -= 100.0
-    else:
-        reward -= 0.0 if current["front_radar"]>2 else (100-current["front_radar"]*50)
+
+    # if collided:
+    #     reward -= 50.0
+    # else:
+    #     reward -= 0.0 if current["front_radar"]>2 else (50-current["front_radar"]*25)
+    reward -= 0.0 if current["front_radar"] > 2 else (50 - current["front_radar"] * 25)
 
     # Sidewalk intersection [0, 1]
     reward -= 10 * (current["forward_speed"]+1.0) * current["intersection_offroad"]
@@ -1189,7 +1192,7 @@ def collided_done(py_measurements):
 if __name__ == "__main__":
 
     env = CarlaEnv()
-    expert_probability = 0.5
+    expert_probability = 1.0
     obs = env.reset()
     print("reset")
     start = time.time()
@@ -1224,7 +1227,7 @@ if __name__ == "__main__":
         print("angular_speed_degree:", info["angular_speed_degree"])
         print("dist_to_intersection:", info["dist_to_intersection"])
         print('collided:', info["collided"])
-        print('front_radar:',info["front_radar"] )
+        print('front_radar: -----------------------------------------------------',info["front_radar"] )
 
         if done:
             env.reset()
