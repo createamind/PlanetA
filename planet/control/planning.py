@@ -98,7 +98,7 @@ def cross_entropy_method(
                                default=costn0)
             heading_loss_weighted = heading_loss * tf.where(heading_loss > threshold_degree - 90,
                                                             tf.ones((amount,)) * 0.3, tf.ones(
-                    (amount,)) * 10.0)  # + 0.3*angular_turn_relative # + 0.1*angular_turn_abs
+                    (amount,)) * 100.0)  # + 0.3*angular_turn_relative # + 0.1*angular_turn_abs
             return_heading = tf.reshape(heading_loss_weighted, (original_batch, amount))
 
             total_return = return_ + return_heading  # /90.0*12*4
