@@ -23,11 +23,12 @@ def random_episodes(env_ctor, num_episodes, output_dir=None):
   env = env_ctor()  # env is an <ExternalProcess object>.
   env = wrappers.CollectGymDataset(env, output_dir)
   episodes = []
+  num_episodes = 100
   for _ in range(num_episodes):
     policy = lambda env, obs: env.action_space.sample()
     done = False
     obs = env.reset()
-    # cnt = 0
+    # cnt = 0append
     while not done:
       action = policy(env, obs)
       obs, _, done, info = env.step(action)  # env.step
@@ -35,3 +36,26 @@ def random_episodes(env_ctor, num_episodes, output_dir=None):
     # print(cnt)
     episodes.append(info['episode'])  # if done is True, info stores the 'episode' information and 'episode' is written in a file(e.g. "~/planet/log_debug/00001/test_episodes").
   return episodes
+
+
+
+# for sac to colletc  [o,a,r,o`,d]
+def random_episodes_sac(env_ctor, num_episodes, output_dir=None,sess=None,pi_ep=None,x=None):
+  env = env_ctor()  # env is an <ExternalProcess object>.
+  env = wrappers.CollectGymDataset(env, output_dir)
+  episodes = []
+  for _ in range(num_episodes):
+
+    done = False
+    obs = env.reset()
+    # cnt = 0
+    while not done:
+      action = sess.run(pi_ep, feed_dict={x: obs.reshape(1, -1)})[0]
+      obs, _, done, info = env.step(action)  # env.step
+    #   cnt += 1
+    # print(cnt)
+    episodes.append(info['episode'])  # if done is True, info stores the 'episode' information and 'episode' is written in a file(e.g. "~/planet/log_debug/00001/test_episodes").
+  return episodes
+
+
+

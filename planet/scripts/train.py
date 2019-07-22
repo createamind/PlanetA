@@ -60,6 +60,7 @@ from planet import TASK_NAME
 
 ''' 'start' and 'resume' return config for training.'''
 def start(logdir, args):            # 'logpath/00001'
+  print("enter start ............................")
   with args.params.unlocked:
     args.params.logdir = logdir
   config = tools.AttrDict()         # unlocked = False, config = AttrDict {}
@@ -69,11 +70,13 @@ def start(logdir, args):            # 'logpath/00001'
   return config
 
 def resume(logdir, args):
+  print("enter resume .......................")
   with args.params.unlocked:
     args.params.logdir = logdir
   config = tools.AttrDict()
   with config.unlocked:
     config = getattr(configs, args.config)(config, args.params)
+  #training.utility.collect_initial_episodes(config)
   return config
 
 
@@ -135,3 +138,5 @@ if __name__ == '__main__':
   args_.logdir = args_.logdir and os.path.expanduser(args_.logdir)
   remaining.insert(0, sys.argv[0])
   tf.app.run(lambda _: main(args_), remaining)   # tf.app.run(main, argv): Runs the program with an optional 'main' function and 'argv' list.
+
+

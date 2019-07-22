@@ -420,9 +420,12 @@ class CollectGymDataset(object):
       future = self._env.reset(*args, **kwargs)
       return lambda: self._process_reset(future())
 
+# now change the function for sac
   def _process_step(self, action, observ, reward, done, info):
-    self._transition.update({'action': info['action'], 'reward': reward})
+    self._transition.update({'action': info['action'], 'reward': reward,'done': done})
     self._transition.update(info)
+
+    #self._transition.update(self._process_observ_sac_next(observ)) # add o_next
     self._episode.append(self._transition)
     self._transition = {}
     if not done:
@@ -450,6 +453,22 @@ class CollectGymDataset(object):
     self._episode = []
     self._transition = {}
     self._transition.update(self._process_observ(observ))
+    return observ
+
+  def _process_observ_next(self,observ):
+    if not isinstance(observ, dict):
+      observ = {'observ_next': observ}
+    return observ
+
+# for sac
+  def _process_observ_sac_next(self, observ):
+    if isinstance(observ, dict):
+      observ = {'image_next': observ['image']}
+    return observ
+
+  def _process_observ_sac(self, observ):
+    if isinstance(observ, dict):
+      observ = {'image': observ['image']}
     return observ
 
   def _process_observ(self, observ):

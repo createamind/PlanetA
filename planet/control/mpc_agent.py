@@ -65,16 +65,18 @@ class MPCAgent(object):
     with tf.control_dependencies([prev_action]):
       use_obs = tf.ones(tf.shape(agent_indices), tf.bool)[:, None]
       _, state = self._cell((embedded, prev_action, use_obs), state)
-    action = self._config.planner(
-        self._cell, self._config.objective, state, info,
-        embedded.shape[1:].as_list(),
-        prev_action.shape[1:].as_list())
-    action = action[:, 0]
+    # action = self._config.planner(
+    #     self._cell, self._config.objective, state, info,
+    #     embedded.shape[1:].as_list(),
+    #     prev_action.shape[1:].as_list())
+    feature = self._cell.features_from_state(state)  # [s,h]
+    mu, pi, logp_pi, q1, q2, q1_pi, q2_pi = self._config.actor_critic(feature,prev_action)
+
     if self._config.exploration:
       scale = self._config.exploration.scale
       if self._config.exploration.schedule:
         scale *= self._config.exploration.schedule(self._step)
-      action = tfd.Normal(action, scale).sample()
+      action = tfd.Normal(mu, scale).sample()
     action = tf.clip_by_value(action, -1, 1)
     remember_action = self._prev_action.assign(action)
     remember_state = nested.map(

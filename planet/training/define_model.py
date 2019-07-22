@@ -17,13 +17,15 @@ from __future__ import division
 from __future__ import print_function
 
 import functools
-
+import numpy as np
 import tensorflow as tf
-
+from numbers import Number
 from planet import tools, NUM_GPU
 from planet.training import define_summaries
 from planet.training import utility
-
+from planet.networks.sac1 import get_vars
+#def define_model_sac(data,trainer,config):
+from planet import control
 
 def define_model(data, trainer, config):
   tf.logging.info('Build TensorFlow compute graph.')
@@ -32,6 +34,21 @@ def define_model(data, trainer, config):
   global_step = trainer.global_step  # tf.train.get_or_create_global_step()
   phase = trainer.phase
   should_summarize = trainer.log
+  # alpha = 0.2
+  # gamma = 0.99
+  # lr = 1e-3
+  # polyak = 0.995
+
+  import argparse
+  parser = argparse.ArgumentParser()
+
+
+
+  parser.add_argument('--gamma', type=float, default=0.99)
+  parser.add_argument('--alpha', type=float,default=0.1, help="alpha can be either 'auto' or float(e.g:0.2).")
+  parser.add_argument('--lr', type=float, default=0.001)
+  parser.add_argument('--polyak', type=float, default=0.995)
+  args = parser.parse_args()
 
   num_gpu = NUM_GPU
 
@@ -80,6 +97,19 @@ def define_model(data, trainer, config):
               kwargs = dict()
               encoder = tf.make_template(
                   'encoder', config.encoder, create_scope_now_=True, **kwargs)
+              kwargs = dict(hidden_sizes=[400,300])
+              #add for sac1
+
+              main_actor_critic = tf.make_template(
+                  'main_actor_critic', config.actor_critic, create_scope_now_=True, **kwargs)
+
+              #kwargs = dict(hidden_sizes=[128, 128, 128])
+              target_actor_critic = tf.make_template(
+                  'target_actor_critic', config.actor_critic, create_scope_now_=True, **kwargs)
+
+              episode_actor_critic = tf.make_template(
+                  'episode_actor_critic', config.actor_critic, create_scope_now_=True, **kwargs)
+
               heads = {}
               for key, head in config.heads.items():  # heads: network of 'image', 'reward', 'state'
                   name = 'head_{}'.format(key)
@@ -107,66 +137,106 @@ def define_model(data, trainer, config):
               _, zs_prior, zs_posterior, zs_mask = tools.nested.map(
                   lambda tensor: tensor[:, :, :1], (target, prior, posterior, mask))
               zs_target = {key: value[:, :, None] for key, value in zero_step_obs.items()}
-              zero_step_losses = utility.compute_losses(
-                  config.zero_step_losses, cell, heads, step, zs_target, zs_prior,
-                  zs_posterior, zs_mask, config.free_nats, debug=config.debug)
-              losses += [
-                  loss * config.zero_step_losses[name] for name, loss in
-                  zero_step_losses.items()]
-              if 'divergence' not in zero_step_losses:
-                  zero_step_losses['divergence'] = tf.zeros((), dtype=tf.float32)
 
-              # Overshooting losses.
-              if config.overshooting > 1:
-                  os_target, os_prior, os_posterior, os_mask = tools.nested.map(
-                      lambda tensor: tensor[:, :, 1:-1], (target, prior, posterior, mask))
-                  if config.stop_os_posterior_gradient:
-                      os_posterior = tools.nested.map(tf.stop_gradient, os_posterior)
-                  overshooting_losses = utility.compute_losses(
-                      config.overshooting_losses, cell, heads, step, os_target, os_prior,
-                      os_posterior, os_mask, config.free_nats, debug=config.debug)
-                  losses += [
-                      loss * config.overshooting_losses[name] for name, loss in
-                      overshooting_losses.items()]
+              features = cell.features_from_state(zs_posterior)  # [s,h]
+              #+++++++++++++++++++++++++++++++++++++++add for sac+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+              # data for sac
+              features = tf.stop_gradient(features)  # stop gradient for features
+
+
+
+              hidden_next= features[:, 1:] # s2,s3,s4.......s50
+              hidden = features[:, :-1]  # s1,s2,s3.......s49
+              reward = obs['reward'][:,:-1]
+              action = obs['action'][:,:-1]
+              done = obs['done'][:,:-1]
+
+              done = tf.cast(done, dtype=tf.float32)
+
+              reward = tf.reshape(reward,(-1,1))
+              action = tf.reshape(action,(-1,2))
+              done = tf.reshape(done, (-1, 1))
+              hidden_next = tf.reshape(hidden_next, (-1, 250))
+              hidden = tf.reshape(hidden, (-1, 250))
+
+              x = tf.placeholder(dtype=tf.float32, shape=(None, 250))
+              a = tf.placeholder(dtype=tf.float32, shape=(None, 2))
+              mu, pi, logp_pi, q1, q2, q1_pi, q2_pi = main_actor_critic(hidden,action)
+              _, _, logp_pi_, _, _,q1_pi_, q2_pi_ = target_actor_critic(hidden_next,action)
+              _, pi_ep, _, _, _, _, _ = episode_actor_critic(x, a)
+
+
+              target_init = tf.group([tf.assign(v_targ, v_main) for v_main, v_targ in
+                                      zip(get_vars('main_actor_critic'), get_vars('target_actor_critic'))])
+
+              if args.alpha == 'auto':
+                  target_entropy = (-np.prod([2,1]))
+
+                  log_alpha = tf.get_variable('log_alpha', dtype=tf.float32, initializer=1.0)
+                  alpha = tf.exp(log_alpha)
+
+                  alpha_loss = tf.reduce_mean(-log_alpha * tf.stop_gradient(logp_pi + target_entropy))
+
+                  alpha_optimizer = tf.train.AdamOptimizer(learning_rate=args.lr * 0.01, name='alpha_optimizer')
+                  train_alpha_op = alpha_optimizer.minimize(loss=alpha_loss, var_list=[log_alpha])
+
+              min_q_pi = tf.minimum(q1_pi_, q2_pi_)
+
+              # Targets for Q and V regression
+              v_backup = tf.stop_gradient(min_q_pi - args.alpha * logp_pi)
+              q_backup = reward + args.gamma * (1 - done) * v_backup
+
+              # Soft actor-critic losses
+              pi_loss = tf.reduce_mean(args.alpha * logp_pi - q1_pi)
+              q1_loss = 0.5 * tf.reduce_mean((q_backup - q1) ** 2)
+              q2_loss = 0.5 * tf.reduce_mean((q_backup - q2) ** 2)
+              value_loss = q1_loss + q2_loss
+              #loss = value_loss + pi_loss
+              # Policy train op
+              # (has to be separate from value train op, because q1_pi appears in pi_loss)
+              pi_optimizer = tf.train.AdamOptimizer(learning_rate=args.lr)
+              train_pi_op = pi_optimizer.minimize(pi_loss, var_list=get_vars('main_actor_critic/pi'))
+
+              # Value train op
+              # (control dep of train_pi_op because sess.run otherwise evaluates in nondeterministic order)
+              value_optimizer = tf.train.AdamOptimizer(learning_rate=args.lr)
+              value_params = get_vars('main_actor_critic/q')
+              with tf.control_dependencies([train_pi_op]):
+                  train_value_op = value_optimizer.minimize(value_loss, var_list=value_params)
+
+              # Polyak averaging for target variables
+              # (control flow because sess.run otherwise evaluates in nondeterministic order)
+              with tf.control_dependencies([train_value_op]):
+                  target_update = tf.group([tf.assign(v_targ, args.polyak * v_targ + (1 - args.polyak) * v_main)
+                                            for v_main, v_targ in zip(get_vars('target_actor_critic'), get_vars('target_actor_critic'))])
+
+              # All ops to call during one training step
+              if isinstance(args.alpha, Number):
+                 print("enter into args.alpha")
+                 train_step_op = [pi_loss, q1_loss, q2_loss, q1, q2, logp_pi, tf.identity(args.alpha),
+                              train_pi_op, train_value_op, target_update]
               else:
-                  overshooting_losses = {}
-              if 'divergence' not in overshooting_losses:
-                  overshooting_losses['divergence'] = tf.zeros((), dtype=tf.float32)
-
-              # Workaround for TensorFlow deadlock bug.
-              loss = sum(losses)
-              train_loss = tf.cond(
-                  tf.equal(phase, 'train'),
-                  lambda: loss,
-                  lambda: 0 * tf.get_variable('dummy_loss', (), tf.float32))
-
-              #  for multi-gpu
-              if num_gpu == 1:
-                  train_summary = utility.apply_optimizers(
-                      train_loss, step, should_summarize, config.optimizers)
-              else:
-                  training_grad_dict = utility.get_grads(
-                      train_loss, step, should_summarize, config.optimizers, include_var=(scope_name,))
-                  for a in grads_dict.keys():
-                      grads_dict[a].append(training_grad_dict[a]["grad"])
-                      if gpu_k == 0:
-                        var_for_trainop[a].append(training_grad_dict[a]["var"])
-                  # train_summary = tf.cond(
-                  #     tf.equal(phase, 'train'),
-                  #     lambda: utility.apply_optimizers(
-                  #         loss, step, should_summarize, config.optimizers),
-                  #     str, name='optimizers')
-
-  #  for multi-gpu
-  if num_gpu > 1:
-      averaged_gradients ={}
-      with tf.device('/cpu:0'):
-        for a in grads_dict.keys():
-            averaged_gradients[a]  = average_gradients(grads_dict[a])
-        train_summary = utility.apply_grads(averaged_gradients,var_for_trainop,step,should_summarize,config.optimizers)
+                  step_ops = [pi_loss, q1_loss, q2_loss, q1, q2, logp_pi, alpha,
+                              train_pi_op, train_value_op, target_update, train_alpha_op]
 
 
-  # Active data collection.
+              # train_step_op = tf.cond(
+              #     tf.equal(phase, 'sac'),
+              #     lambda: pi_loss,
+              #     lambda: 0 * tf.get_variable('dummy_loss', (), tf.float32))
+
+
+
+              with tf.control_dependencies(train_step_op):
+                  train_summary = tf.constant('')
+
+
+
+
+
+# for sac ===================================if you phase is set as sac , it will not enter phase train and test so
+# it will not do planning for  episode data .
   collect_summaries = []
   graph = tools.AttrDict(locals())
   with tf.variable_scope('collection'):
@@ -174,7 +244,7 @@ def define_model(data, trainer, config):
     for name, params in config.sim_collects.items():
       after, every = params.steps_after, params.steps_every
       should_collect = tf.logical_and(
-          tf.equal(phase, 'train'),
+          tf.equal(phase, 'sac'),
           tools.schedule.binary(step, config.batch_shape[0], after, every))
       collect_summary, score_train = tf.cond(
           should_collect,
@@ -188,27 +258,25 @@ def define_model(data, trainer, config):
   # Compute summaries.
   graph = tools.AttrDict(locals())
   with tf.control_dependencies(collect_summaries):
-    summaries, score = tf.cond(
-        should_summarize,
-        lambda: define_summaries.define_summaries(graph, config),
-        lambda: (tf.constant(''), tf.zeros((0,), tf.float32)),
-        name='summaries')
+    # summaries, score = tf.cond(
+    #     should_summarize,
+    #     lambda: define_summaries.define_summaries(graph, config),
+    #     lambda: (tf.constant(''), tf.zeros((0,), tf.float32)),
+    #     name='summaries')
+    summaries=tf.constant('')
+    score=tf.zeros((0,), tf.float32)
   with tf.device('/cpu:0'):
     summaries = tf.summary.merge([summaries, train_summary])
     # summaries = tf.summary.merge([summaries, train_summary] + collect_summaries)
-    zs_entropy = (tf.reduce_sum(tools.mask(
-        cell.dist_from_state(zs_posterior, zs_mask).entropy(), zs_mask)) /
-        tf.reduce_sum(tf.to_float(zs_mask)))
+
     dependencies.append(utility.print_metrics((
         ('score', score_train),
-        ('loss', loss),
-        ('zs_entropy', zs_entropy),
-        ('zs_divergence', zero_step_losses['divergence']),
+        ('pi_loss', pi_loss),
+        ('value_loss', value_loss),
     ), step, config.mean_metrics_every))
   with tf.control_dependencies(dependencies):
     score = tf.identity(score)
-  return score, summaries
-
+  return score, summaries,target_init
 
 
 def average_gradients(tower_grads):

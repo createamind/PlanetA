@@ -232,12 +232,12 @@ IMG_SIZE = (128, 128)
 H_SIZE, S_SIZE = 200, 50
 EPISODE_LEN, COLLECT_EPISODE = 300, 300000.0
 REPEATE = 1
-NUM_SEED = 1
-NUM_GPU, BATCHSIZE, CHUNK_LEN = 1, 5, 5
+NUM_SEED = 1  # for sac to collect a episode data in every step
+NUM_GPU, BATCHSIZE, CHUNK_LEN = 1, 5, 50
 REWARD_FUNC = 'custom3'
 USE_SENSOR, NUM_CHANNELS ='use_rgb', 3  #'use_2rgb', 6  #
 SCENARIO = 'TOWN2_CARS' # 'TOWN2_ONE_CURVE_STRAIGHT_NAV' #             ###'TOWN2_NPC' # TOWN2_WEATHER_NPC'  #
-LOGDIR = '~/Data/planet/carla_60_30_rgb_car_0.3_E2' #carla_30_30_rgb_car_0.0_E1' #
+LOGDIR = '~/Data/planet/carla_70_30_rgb_car_0.0_E3' #carla_30_30_rgb_car_0.0_E1' #
 
 
 #############################################

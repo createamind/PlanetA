@@ -121,7 +121,7 @@ def get_batch(datasets, phase, reset):  # datasets = {'train': <PrefetchDataset 
     datasets.test = datasets.test.make_one_shot_iterator()
   data = tf.cond(
       tf.equal(phase, 'train'),
-      datasets.train.get_next,  # tf.cond( pred, true_fn=None, false_fn=None, ...)
+      datasets.train.get_next,  # tf.cond( pred, true_phase, 'train'fn=None, false_fn=None, ...)
       datasets.test.get_next)   #　Return true_fn() if the predicate pred is true else false_fn()
   if not isinstance(data, dict):
     data = {'data': data}
@@ -162,7 +162,7 @@ def train(model_fn, datasets, logdir, config):
   trainer = trainer_.Trainer(logdir, config=config)
   with tf.variable_scope('graph', use_resource=True):
     data = get_batch(datasets, trainer.phase, trainer.reset) # {'state': <tf.Tensor 'graph/cond_3/Merge_4:0' shape=(50, 50, 1) dtype=float32>, 'image': <tf.Tensor 'graph/cond_3/Merge_1:0' shape=(50, 50, 64, 64, 3) dtype=float32>, 'action': <tf.Tensor 'graph/cond_3/Merge:0' shape=(50, 50, 2) dtype=float32>, 'reward': <tf.Tensor 'graph/cond_3/Merge_3:0' shape=(50, 50) dtype=float32>, 'length': <tf.Tensor 'graph/cond_3/Merge_2:0' shape=(50,) dtype=int32>}
-    score, summary = model_fn(data, trainer, config)         # model_fn is training.define_model
+    score, summary,init_update_op = model_fn(data, trainer, config)         # model_fn is training.define_model
     message = 'Graph contains {} trainable variables.'
     tf.logging.info(message.format(tools.count_weights()))
     if config.train_steps: # 50000
@@ -179,9 +179,19 @@ def train(model_fn, datasets, logdir, config):
           report_every=config.test_steps,
           log_every=config.test_steps,
           checkpoint_every=config.test_checkpoint_every)
+
+
+    if config.sac_steps:
+        trainer.add_phase(
+            'sac', config.sac_steps, score, summary,
+            batch_size=config.batch_shape[0],
+            report_every=None,
+            log_every=config.train_log_every,
+            checkpoint_every=config.train_checkpoint_every)
+
   for saver in config.savers:
     trainer.add_saver(**saver)
-  for score in trainer.iterate(config.max_steps):
+  for score in trainer.iterate(config.max_steps,init_update_op=init_update_op):
     yield score
 
 
@@ -211,10 +221,12 @@ def compute_losses(
     else:
       message = "Loss scale of head '{}' is not used."
       print(message.format(key))
+      continue
     # Average over the batch and normalize by the maximum chunk length.
     loss = tf.reduce_mean(loss)
     losses[key] = tf.check_numerics(loss, key) if debug else loss
   return losses
+
 
 
 def apply_optimizers(loss, step, should_summarize, optimizers):
@@ -274,6 +286,7 @@ def simulate_episodes(config, params, graph, name):
       cell=cell,
       encoder=graph.encoder,
       planner=params.planner,
+      actor_critic=graph.main_actor_critic,
       objective=functools.partial(params.objective, graph=graph),
       exploration=params.exploration,
       preprocess_fn=config.preprocess_fn,
@@ -327,7 +340,7 @@ def collect_initial_episodes(config):
   for name, params in items:
     message = 'Collecting {}+ random episodes ({}).'  # e.g. Collecting 5+ random episodes (test-cheetah_run).
     tf.logging.info(message.format(params.num_episodes, name))
-    control.random_episodes(
+    control.random_episodes_sac(
         params.task.env_ctor,
         params.num_episodes,
         params.save_episode_dir)

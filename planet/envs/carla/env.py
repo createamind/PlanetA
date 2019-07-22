@@ -599,12 +599,12 @@ class CarlaEnv(gym.Env):
 
         # done or not
         # done = False
-        # done = self.cnt1 > 50 and (py_measurements["collision_vehicles"] or py_measurements["collision_pedestrians"] or py_measurements["collision_other"] or self.displacement < 0.5)
-        if self.enable_autopilot:
-            done = False
-        else:
-            # done = self.cnt1 > 50 and self.displacement < 0.25
-            done = self.cnt1 > 50 and self.displacement < 0.2
+        done = self.cnt1 > 50 and (py_measurements["collision_vehicles"] or py_measurements["collision_pedestrians"] or py_measurements["collision_other"] or self.displacement < 0.5)
+        # if self.enable_autopilot:
+        #     done = False
+        # else:
+        #     # done = self.cnt1 > 50 and self.displacement < 0.25
+        #     done = self.cnt1 > 50 and self.displacement < 0.2
 
         # done = (self.num_steps > self.scenario["max_steps"]
         #         or py_measurements["next_command"] == "REACH_GOAL" or py_measurements["intersection_offroad"] or py_measurements["intersection_otherlane"]

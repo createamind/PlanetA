@@ -63,3 +63,6 @@ class AttrDict(dict):
 
   def copy(self, _unlocked=False):
     return type(self)(super(AttrDict, self).copy(), _unlocked=_unlocked)   # copy the dict and then convert it to AttrDict.
+
+
+

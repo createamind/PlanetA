@@ -33,6 +33,7 @@ from planet import BATCHSIZE, CHUNK_LEN, NUM_SEED, H_SIZE, S_SIZE, PLANNING, TES
 def default(config, params):   # config={}, params = {'tasks': ['breakout'], 'logdir': './log_testing/00001'}
   config.debug = False
   config.zero_step_losses = tools.AttrDict(_unlocked=True)
+  config.sac_losses = tools.AttrDict(_unlocked=True)
   config = _data_processing(config, params)    # data config
   config = _model_components(config, params)   # model config
   config = _tasks(config, params)              # task config
@@ -72,6 +73,9 @@ def _data_processing(config, params):
 
 def _model_components(config, params):
   network = getattr(networks, params.get('network', 'conv_ha'))
+  network_sac = getattr(networks, params.get('network_sac', 'sac1'))
+  config.actor_critic= network_sac.mlp_actor_critic
+
   config.encoder = network.encoder
   config.decoder = network.decoder
   config.heads = tools.AttrDict(image=config.decoder)
@@ -123,10 +127,12 @@ def _loss_functions(config, params):
   config.zero_step_losses.divergence = params.get('divergence_scale', 1.0)
   config.zero_step_losses.global_divergence = params.get('global_divergence_scale', 0.1)
   config.zero_step_losses.reward = params.get('reward_scale', 10.0)
+
   config.overshooting = params.get('overshooting', config.batch_shape[1] - 1)  # 49 # config.overshooting_losses
   config.overshooting_losses = config.zero_step_losses.copy(_unlocked=True)
   config.overshooting_losses.reward = params.get(
       'overshooting_reward_scale', 100.0)
+
 
   if not PLANNING:
       # loss weights for angular_speed_degree.
@@ -166,15 +172,16 @@ def _loss_functions(config, params):
 
 
 def _training_schedule(config, params):
-  config.train_steps = int(params.get('train_steps', 0 if TESTING else 50000))  # train_steps for each epoch
-  config.test_steps = int(params.get('test_steps', 100))      # test_steps for each epoch
+  #config.train_steps = int(params.get('train_steps', 0 if TESTING else 50000))  # train_steps for each epoch
+  #config.test_steps = int(params.get('test_steps', 100))      # test_steps for each epoch
+  config.sac_steps = int(params.get('sac_steps', 100000))
   config.max_steps = int(params.get('max_steps', 2e8))        # steps for each run
   config.train_log_every = config.train_steps
   config.train_checkpoint_every = None
   config.test_checkpoint_every = int(
       params.get('checkpoint_every', 1e9 if TESTING else config.test_steps))
   config.savers = [tools.AttrDict(exclude=(r'.*_temporary.*',))]
-  config.mean_metrics_every = config.train_steps // 10         # steps for each metrics
+  config.mean_metrics_every = config.sac_steps // 10         # steps for each metrics
   config.train_dir = os.path.join(params.logdir, 'train_episodes')
   config.test_dir = os.path.join(params.logdir, 'test_episodes')
   config.random_collects = _initial_collection(config, params)

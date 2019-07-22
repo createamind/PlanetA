@@ -21,7 +21,7 @@ import os
 import re
 
 import tensorflow as tf
-
+from planet import control
 from planet import tools
 
 
@@ -160,7 +160,8 @@ class Trainer(object):
     for _ in self.iterate(max_step, sess):
       pass
 
-  def iterate(self, max_step=None, sess=None):
+
+  def iterate(self, max_step=None, sess=None , init_update_op=None):
     """Run the schedule for a specified number of steps and yield scores.
 
     Call the operation of the current phase until the global step reaches the
@@ -179,6 +180,7 @@ class Trainer(object):
       self._initialize_variables(
           sess, self._loaders, self._logdirs, self._checkpoints)
       sess.graph.finalize()
+      sess.run(init_update_op)
       while True:                                   # MAIN LOOP
         global_step = sess.run(self._global_step)
         if max_step and global_step >= max_step:
@@ -217,6 +219,7 @@ class Trainer(object):
             phase_step, phase.batch_size, phase.restore_every):
           self._initialize_variables(
               sess, self._loaders, self._logdirs, self._checkpoints)
+
 
   def _is_every_steps(self, phase_step, batch, every):
     """Determine whether a periodic event should happen at this step.
@@ -325,17 +328,17 @@ class Trainer(object):
         checkpoint = state.model_checkpoint_path
       if checkpoint:
 
-        saver.restore(sess, checkpoint)
+        #saver.restore(sess, checkpoint)
 
-        # variables_to_restore = tf.contrib.framework.get_variables_to_restore()
-        # # variables_restore = [v for v in variables_to_restore if v.name.split('/')[0] not in 'angular_speed_degree']
-        # # variables_restore = [v for v in variables_to_restore if 'angular_speed_degree' not in v.name and 'env_temporary' not in v.name]
-        # variables_restore = [v for v in variables_to_restore if  'env_temporary' not in v.name \
-        #                      and 'forward_speed' not in v.name and 'collided' not in v.name and 'intersection_offroad' not in v.name\
-        #                      and 'intersection_otherlane' not in v.name and 'reward' not in v.name]
-        # # variables_restore = [v for v in variables_to_restore if 'reward' not in v.name and 'env_temporary' not in v.name]
-        # saver1 = tf.train.Saver(variables_restore)
-        # saver1.restore(sess, checkpoint)
+        variables_to_restore = tf.contrib.framework.get_variables_to_restore()
+        # variables_restore = [v for v in variables_to_restore if v.name.split('/')[0] not in 'angular_speed_degree']
+        # variables_restore = [v for v in variables_to_restore if 'angular_speed_degree' not in v.name and 'env_temporary' not in v.name]
+        variables_restore = [v for v in variables_to_restore if 'encoder' in v.name or 'rnn' in v.name]
+        print("---------------------------------------------variables restore----------------------------------------")
+        print(variables_restore)
+        # variables_restore = [v for v in variables_to_restore if 'reward' not in v.name and 'env_temporary' not in v.name]
+        saver1 = tf.train.Saver(variables_restore)
+        saver1.restore(sess, checkpoint)
 
 # tf.get_collection('variables')
 #   variables_to_restore = tf.contrib.framework.get_variables_to_restore()
