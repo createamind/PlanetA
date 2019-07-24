@@ -400,6 +400,7 @@ class CollectGymDataset(object):
     self._outdir = outdir and os.path.expanduser(outdir)
     self._episode = None
     self._transition = None
+    self._stop = None
 
   def __getattr__(self, name):
     return getattr(self._env, name)
@@ -415,6 +416,7 @@ class CollectGymDataset(object):
   def reset(self, *args, **kwargs):
     if kwargs.get('blocking', True):
       observ = self._env.reset(*args, **kwargs)       # carla: observ = {'state':..., 'image':array(...)}
+      self._stop = False
       return self._process_reset(observ)
     else:
       future = self._env.reset(*args, **kwargs)
@@ -428,7 +430,8 @@ class CollectGymDataset(object):
     #self._transition.update(self._process_observ_sac_next(observ)) # add o_next
     self._episode.append(self._transition)
     self._transition = {}
-    if not done:
+
+    if not self._stop:
       #print('updating.....................................')
       self._transition.update(self._process_observ(observ))
     else:
@@ -447,6 +450,8 @@ class CollectGymDataset(object):
         filename = self._get_filename()
         #print('writing ......................................')
         self._write(episode, filename)   #
+    if done:
+      self._stop = done
     return observ, reward, done, info
 
   def _process_reset(self, observ):
@@ -484,7 +489,12 @@ class CollectGymDataset(object):
     return filename
 
   def _get_episode(self):
-    episode = {k: [t[k] for t in self._episode] for k in self._episode[0]}
+    print("enter _get_episode :")
+    episode={}
+    for k in self._episode[0]:
+      print(k)
+      episode[k] = [t[k] for t in self._episode]
+    #episode = {k: [t[k] for t in self._episode] for k in self._episode[0]}
     episode = {k: np.array(v) for k, v in episode.items()}
     for key, sequence in episode.items():
       if sequence.dtype == 'object':
