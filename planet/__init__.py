@@ -226,7 +226,7 @@ from __future__ import print_function
 # LOGDIR = '~/Data/planet/carla_60_30_rgb_car_0.3_E2'
 
 
-TASK_NAME="{tasks: [carla]}"; ENABLE_EXPERT=0.0; PLANNING=False; TESTING=True
+TASK_NAME="{tasks: [carla]}"; ENABLE_EXPERT=0.0; PLANNING=False; TESTING=False
 STATES = ['reward','angular_speed_degree']#,'collided','forward_speed','intersection_offroad','intersection_otherlane']
 IMG_SIZE = (128, 128)
 H_SIZE, S_SIZE = 200, 50

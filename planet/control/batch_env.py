@@ -76,6 +76,7 @@ class BatchEnv(object):
     Returns:
       Batch of observations, rewards, and done flags.
     """
+    #print("====================================batch_env.step============================================")
     for index, (env, action) in enumerate(zip(self._envs, actions)):
       if not env.action_space.contains(action):
         message = 'Invalid action at index {}: {}'

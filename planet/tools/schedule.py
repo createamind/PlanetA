@@ -53,3 +53,5 @@ def linear_reset(step, ramp, after, every):
   result = tf.minimum((before + after) / ramp, 1)
   result.set_shape(tf.TensorShape([]))
   return result
+
+

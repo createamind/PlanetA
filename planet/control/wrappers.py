@@ -406,6 +406,7 @@ class CollectGymDataset(object):
     return getattr(self._env, name)
 
   def step(self, action, *args, **kwargs):
+    #print("============================collectgymdataset.step============================================")
     if kwargs.get('blocking', True):
       transition = self._env.step(action, *args, **kwargs)
       return self._process_step(action, *transition)   # use the transition tuple as arguments.
@@ -426,12 +427,32 @@ class CollectGymDataset(object):
   def _process_step(self, action, observ, reward, done, info):
     self._transition.update({'action': info['action'], 'reward': reward,'done': done})
     self._transition.update(info)
-
+    #print("===============================_process_step==================================")
     #self._transition.update(self._process_observ_sac_next(observ)) # add o_next
     self._episode.append(self._transition)
     self._transition = {}
 
-    if not self._stop:
+    if len(self._episode) >= 300: #if length is 150,this episode will be save with done is false.
+
+      episode = self._get_episode()
+      info['episode'] = episode
+      acc_reward = sum(episode['reward'])
+      if self.step_error:
+        print('step error... this episode will NOT be saved.')
+
+      # control data collection...
+      elif acc_reward > COLLECT_EPISODE:
+        print('episode length: {}.  accumulative reward({}) > {}... this episode will NOT be saved.'.format(
+          len(self._episode), acc_reward, COLLECT_EPISODE))
+
+      elif self._outdir:
+        print(
+          'episode length: {}.  accumulative reward({}) <= {}... this episode will be saved.'.format(len(self._episode),acc_reward, COLLECT_EPISODE))
+        filename = self._get_filename()
+        # print('writing ......................................')
+        self._write(episode, filename)  #
+
+    elif not self._stop:
       #print('updating.....................................')
       self._transition.update(self._process_observ(observ))
     else:
@@ -443,13 +464,14 @@ class CollectGymDataset(object):
 
       # control data collection...
       elif acc_reward > COLLECT_EPISODE:
-        print('episode length: {}.  accumulative reward({}) > {}... this episode will NOT be saved.'.format(len(self._episode),acc_reward,COLLECT_EPISODE))
+        print('episode length: {}.  accumulative reward({}) > {}... this episode will NOT be saved.'.format(len(self._episode),acc_reward, COLLECT_EPISODE))
 
       elif self._outdir:
-        print('episode length: {}.  accumulative reward({}) <= {}... this episode will be saved.'.format(len(self._episode),acc_reward,COLLECT_EPISODE))
+        print('episode length: {}.  accumulative reward({}) <= {}... this episode will be saved.'.format(len(self._episode),acc_reward, COLLECT_EPISODE))
         filename = self._get_filename()
         #print('writing ......................................')
         self._write(episode, filename)   #
+
     if done:
       self._stop = done
     return observ, reward, done, info

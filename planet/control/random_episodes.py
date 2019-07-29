@@ -29,14 +29,18 @@ def random_episodes(env_ctor, num_episodes, output_dir=None):
     done = False
     stop = False
     obs = env.reset()
-    # cnt = 0append
+    cnt = 0
     while not stop:
       if done:
         stop = done
       action = policy(env, obs)
       obs, _, done, info = env.step(action)  # env.step
-    #   cnt += 1
-    # print(cnt)
+      #===========add for sac =========================
+      cnt += 1
+      print(cnt)
+      if cnt >= 300:
+        break
+
     episodes.append(info['episode'])  # if done is True, info stores the 'episode' information and 'episode' is written in a file(e.g. "~/planet/log_debug/00001/test_episodes").
     # for i in range(200):
     #   action = policy(env, obs)

@@ -220,15 +220,18 @@ def simulate_step(batch_env, algo, log=True, reset=False):
     agent_indices = tf.cond(
         reset,
         lambda: tf.range(len(batch_env)),
-        lambda: tf.cast(tf.where(batch_env.done)[:, 0], tf.int32))
+        lambda: tf.cast(tf.where(batch_env.stop)[:, 0], tf.int32))
     begin_episode, score, length = tf.cond(
         tf.cast(tf.shape(agent_indices)[0], tf.bool),
         lambda: _define_begin_episode(agent_indices),
         lambda: (str(), score_var, length_var))
+    # ================================add for sac========================================
     with tf.control_dependencies([begin_episode]):
+      stop_assign= tf.cast(batch_env._stop.assign(batch_env._done), tf.bool)
+    with tf.control_dependencies([stop_assign]):
       step, score, length = _define_step()
     with tf.control_dependencies([step]):
-      agent_indices = tf.cast(tf.where(batch_env.done)[:, 0], tf.int32)
+      agent_indices = tf.cast(tf.where(batch_env.stop)[:, 0], tf.int32)
       end_episode = tf.cond(
           tf.cast(tf.shape(agent_indices)[0], tf.bool),
           lambda: _define_end_episode(agent_indices), str)

@@ -120,7 +120,7 @@ def get_batch(datasets, phase, reset):  # datasets = {'train': <PrefetchDataset 
     datasets.train = datasets.train.make_one_shot_iterator()   # Creates an Iterator for enumerating the elements of this dataset.
     datasets.test = datasets.test.make_one_shot_iterator()
   data = tf.cond(
-      tf.equal(phase, 'train'),
+      tf.equal(phase, 'sac'),
       datasets.train.get_next,  # tf.cond( pred, true_phase, 'train'fn=None, false_fn=None, ...)
       datasets.test.get_next)   #　Return true_fn() if the predicate pred is true else false_fn()
   if not isinstance(data, dict):

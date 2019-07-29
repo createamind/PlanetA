@@ -58,6 +58,11 @@ class InGraphBatchEnv(object):
       self._done = tf.get_variable(
           'done', batch_dims, tf.int32,
           tf.constant_initializer(False), trainable=False)
+      #=======================add for sac=================================
+      self._stop = tf.get_variable(
+          'stop', batch_dims, tf.int32,
+          tf.constant_initializer(False), trainable=False)
+
       self._info = tf.get_variable(
           'info', batch_dims+(4,), tf.float32,
           tf.constant_initializer([0,0,0,1000.0]), trainable=False)      # for carla, info is the driving command.
@@ -121,9 +126,11 @@ class InGraphBatchEnv(object):
         self._batch_env.reset, [indices], observ_dtype, name='reset')
     reward = tf.zeros_like(indices, tf.float32)
     done = tf.zeros_like(indices, tf.int32)
+    stop = tf.zeros_like(indices, tf.int32)
     with tf.control_dependencies([
         tf.scatter_update(self._observ, indices, observ),
         tf.scatter_update(self._reward, indices, reward),
+        tf.scatter_update(self._stop, indices, stop),
         tf.scatter_update(self._done, indices, tf.to_int32(done))]):
       return tf.identity(observ)
 
@@ -146,6 +153,11 @@ class InGraphBatchEnv(object):
   def done(self):
     """Access the variable indicating whether the episode is done."""
     return tf.cast(self._done, tf.bool)
+
+  @property
+  def stop(self):
+    """Access the variable indicating whether the episode is done."""
+    return tf.cast(self._stop, tf.bool)
 
   @property
   def info_cmd(self):

@@ -25,7 +25,7 @@ except Exception:
 import gym
 from gym.spaces import Box, Discrete, Tuple
 import random
-
+import tensorflow as tf
 from planet import REWARD_FUNC, IMG_SIZE,  USE_SENSOR, SCENARIO, ENABLE_EXPERT
 
 expert_probability = ENABLE_EXPERT
@@ -563,11 +563,11 @@ class CarlaEnv(gym.Env):
 
         # Process observations: self._read_observation() returns image and py_measurements.
         image, py_measurements = self._read_observation()
-        if self.config["verbose"]:
-            print("Next command", py_measurements["next_command"])
-        print("Next command", py_measurements["next_command"])
-        print("dist_to_intersection:", py_measurements["dist_to_intersection"])
-        print("forward_speed:", py_measurements["forward_speed"])
+        #if self.config["verbose"]:
+            #print("Next command", py_measurements["next_command"])
+        #print("Next command", py_measurements["next_command"])
+        #print("dist_to_intersection:", py_measurements["dist_to_intersection"])
+        #print("forward_speed:", py_measurements["forward_speed"])
 
 
         if type(action) is np.ndarray:
@@ -599,19 +599,23 @@ class CarlaEnv(gym.Env):
 
         # done or not
         # done = False
-        done = self.cnt1 > 50 and (py_measurements["collision_vehicles"] or py_measurements["collision_pedestrians"] or py_measurements["collision_other"] or self.displacement < 0.5)
+        #done = self.cnt1 > 50 and (py_measurements["collision_vehicles"] or py_measurements["collision_pedestrians"] or py_measurements["collision_other"] or self.displacement < 0.5)
         # if self.enable_autopilot:
         #     done = False
         # else:
         #     # done = self.cnt1 > 50 and self.displacement < 0.25
         #     done = self.cnt1 > 50 and self.displacement < 0.2
-
-        # done = (self.num_steps > self.scenario["max_steps"]
-        #         or py_measurements["next_command"] == "REACH_GOAL" or py_measurements["intersection_offroad"] or py_measurements["intersection_otherlane"]
-        #         or (self.config["early_terminate_on_collision"]
-        #             and collided_done(py_measurements)))
+        #print("intersection_offroad",py_measurements["intersection_offroad"])
+        #print("intersection_otherlane",py_measurements["intersection_otherlane"])
+        done = (self.num_steps > self.scenario["max_steps"]
+                or py_measurements["next_command"] == "REACH_GOAL" or (py_measurements["intersection_offroad"]) > 0.001 or (py_measurements["intersection_otherlane"])> 0.001
+                or (self.config["early_terminate_on_collision"]
+                    and collided_done(py_measurements)))
+        print("done",done)
 
         py_measurements["done"] = done
+        print("done_py_measurements", py_measurements["done"])
+
         self.prev_measurement = py_measurements
         py_measurements["collided"]=collision_(self.prev_measurement, py_measurements)  ###
 

@@ -213,11 +213,11 @@ def define_model(data, trainer, config):
 
               # All ops to call during one training step
               if isinstance(args.alpha, Number):
-                 print("enter into args.alpha")
-                 train_step_op = [pi_loss, q1_loss, q2_loss, q1, q2, logp_pi, tf.identity(args.alpha),
+                print("enter into args.alpha")
+                step_ops = [pi_loss, q1_loss, q2_loss, q1, q2, logp_pi, tf.identity(args.alpha),
                               train_pi_op, train_value_op, target_update]
               else:
-                  step_ops = [pi_loss, q1_loss, q2_loss, q1, q2, logp_pi, alpha,
+                step_ops = [pi_loss, q1_loss, q2_loss, q1, q2, logp_pi, alpha,
                               train_pi_op, train_value_op, target_update, train_alpha_op]
 
 
@@ -228,7 +228,7 @@ def define_model(data, trainer, config):
 
 
 
-              with tf.control_dependencies(train_step_op):
+              with tf.control_dependencies(step_ops):
                   train_summary = tf.constant('')
 
 
