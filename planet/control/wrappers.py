@@ -432,7 +432,7 @@ class CollectGymDataset(object):
     self._episode.append(self._transition)
     self._transition = {}
 
-    if len(self._episode) >= 300: #if length is 150,this episode will be save with done is false.
+    if len(self._episode) >= 500: #if length is 150,this episode will be save with done is false.
 
       episode = self._get_episode()
       info['episode'] = episode

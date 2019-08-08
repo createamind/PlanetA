@@ -23,7 +23,7 @@ def random_episodes(env_ctor, num_episodes, output_dir=None):
   env = env_ctor()  # env is an <ExternalProcess object>.
   env = wrappers.CollectGymDataset(env, output_dir)
   episodes = []
-  num_episodes = 5
+
   for _ in range(num_episodes):
     policy = lambda env, obs: env.action_space.sample()
     done = False
@@ -37,8 +37,9 @@ def random_episodes(env_ctor, num_episodes, output_dir=None):
       obs, _, done, info = env.step(action)  # env.step
       #===========add for sac =========================
       cnt += 1
+
       print(cnt)
-      if cnt >= 300:
+      if cnt >= 500:
         break
 
     episodes.append(info['episode'])  # if done is True, info stores the 'episode' information and 'episode' is written in a file(e.g. "~/planet/log_debug/00001/test_episodes").

@@ -224,11 +224,11 @@ def _initial_collection(config, params):
     sims['train-' + task.name] = tools.AttrDict(
         task=task,
         save_episode_dir=config.train_dir,
-        num_episodes=num_seed_episodes)
+        num_episodes=1)
     sims['test-' + task.name] = tools.AttrDict(
         task=task,
         save_episode_dir=config.test_dir,
-        num_episodes=num_seed_episodes)
+        num_episodes=1)
   return sims
 
 
@@ -240,8 +240,8 @@ def _active_collection(config, params):
       sim = _define_simulation(task, config, params, horizon, batch_size)
       sim.unlock()
       sim.save_episode_dir = config.train_dir
-      sim.steps_after = params.get('collect_every', 5 if TESTING else 5000)    # sim after 5000 steps
-      sim.steps_every = params.get('collect_every', 5 if TESTING else 5000)    # sim every 5000 steps
+      sim.steps_after = params.get('collect_every', 5 if TESTING else 10000)    # sim after 5000 steps
+      sim.steps_every = params.get('collect_every', 5 if TESTING else 500)    # sim every 5000 steps
       sim.exploration = tools.AttrDict(
           scale=params.get('exploration_noises', [0.3])[index],
           schedule=functools.partial(

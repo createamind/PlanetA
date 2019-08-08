@@ -51,7 +51,7 @@ def numpy_episodes(
   except ZeroDivisionError:
     dtypes, shapes = _read_spec(test_dir, **kwargs)
   loader = {
-      'scan': functools.partial(_read_episodes_scan, every=scan_every),
+      'scan': functools.partial(_read_episodes_scan1, every=scan_every),
       'reload': _read_episodes_reload,
       'dummy': _read_episodes_dummy,
   }[loader]
@@ -119,6 +119,33 @@ def _read_episodes_scan(
       filenames = filenames[:max_episodes - len(cache)]
     for filename in filenames:
       recent[filename] = _read_episode(filename, **kwargs)
+
+
+''' use all data randomly . '''
+def _read_episodes_scan1(
+    directory, batch_size, every, max_episodes=None, **kwargs):
+  recent = {}
+  cache = {}
+  while True:
+    index = 0
+
+    for episode in np.random.permutation(list(cache.values())):
+      index += 1
+      yield episode
+      if index > every:
+        break
+
+    cache.update(recent)
+    recent = {}
+    filenames = tf.gfile.Glob(os.path.join(directory, '*.npz'))
+    filenames = [filename for filename in filenames if filename not in cache]
+    if max_episodes:
+      filenames = filenames[:max_episodes - len(cache)]
+    for filename in filenames:
+      recent[filename] = _read_episode(filename, **kwargs)
+
+
+
 
 
 def _read_episodes_scan0(

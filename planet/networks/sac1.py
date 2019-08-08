@@ -81,7 +81,7 @@ def apply_squashing_func(mu, pi, logp_pi):
 """
 Actor-Critics
 """
-def mlp_actor_critic(x, a, hidden_sizes=(400,300), activation=tf.nn.relu,
+def mlp_actor_critic(x, a, hidden_sizes=(500,400,300), activation=tf.nn.relu,
                      output_activation=None, policy=mlp_gaussian_policy, action_space=None):
     # policy
     with tf.variable_scope('pi'):

@@ -230,7 +230,7 @@ TASK_NAME="{tasks: [carla]}"; ENABLE_EXPERT=0.0; PLANNING=False; TESTING=False
 STATES = ['reward','angular_speed_degree']#,'collided','forward_speed','intersection_offroad','intersection_otherlane']
 IMG_SIZE = (128, 128)
 H_SIZE, S_SIZE = 200, 50
-EPISODE_LEN, COLLECT_EPISODE = 300, 300000.0
+EPISODE_LEN, COLLECT_EPISODE = 500, 300000.0
 REPEATE = 1
 NUM_SEED = 1  # for sac to collect a episode data in every step
 NUM_GPU, BATCHSIZE, CHUNK_LEN = 1, 5, 50

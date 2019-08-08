@@ -26,7 +26,7 @@ from planet.training import utility
 from planet.networks.sac1 import get_vars
 #def define_model_sac(data,trainer,config):
 from planet import control
-
+from planet.networks import sac1
 def define_model(data, trainer, config):
   tf.logging.info('Build TensorFlow compute graph.')
   dependencies = []
@@ -45,7 +45,7 @@ def define_model(data, trainer, config):
 
 
   parser.add_argument('--gamma', type=float, default=0.99)
-  parser.add_argument('--alpha', type=float,default=0.1, help="alpha can be either 'auto' or float(e.g:0.2).")
+  parser.add_argument('--alpha', type=float,default=0.2, help="alpha can be either 'auto' or float(e.g:0.2).")
   parser.add_argument('--lr', type=float, default=0.001)
   parser.add_argument('--polyak', type=float, default=0.995)
   args = parser.parse_args()
@@ -97,7 +97,7 @@ def define_model(data, trainer, config):
               kwargs = dict()
               encoder = tf.make_template(
                   'encoder', config.encoder, create_scope_now_=True, **kwargs)
-              kwargs = dict(hidden_sizes=[400,300])
+              kwargs = dict(hidden_sizes=[500,400,300])
               #add for sac1
 
               main_actor_critic = tf.make_template(
@@ -107,8 +107,8 @@ def define_model(data, trainer, config):
               target_actor_critic = tf.make_template(
                   'target_actor_critic', config.actor_critic, create_scope_now_=True, **kwargs)
 
-              episode_actor_critic = tf.make_template(
-                  'episode_actor_critic', config.actor_critic, create_scope_now_=True, **kwargs)
+              # episode_actor_critic = tf.make_template(
+              #     'episode_actor_critic', config.actor_critic, create_scope_now_=True, **kwargs)
 
               heads = {}
               for key, head in config.heads.items():  # heads: network of 'image', 'reward', 'state'
@@ -142,49 +142,67 @@ def define_model(data, trainer, config):
               #+++++++++++++++++++++++++++++++++++++++add for sac+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
               # data for sac
-              features = tf.stop_gradient(features)  # stop gradient for features
+              #features = tf.stop_gradient(features)  # stop gradient for features
 
 
+              # s0,s1,.....s49
+              hidden_next= features[:, 4:] # 46
+              hidden = features[:, 3:-1]  # 46
+              reward = obs['reward'][:,3:-1]
+              action = obs['action'][:,3:-1]
+              done = obs['done'][:,3:-1]
 
-              hidden_next= features[:, 1:] # s2,s3,s4.......s50
-              hidden = features[:, :-1]  # s1,s2,s3.......s49
-              reward = obs['reward'][:,:-1]
-              action = obs['action'][:,:-1]
-              done = obs['done'][:,:-1]
+              #s = np.random.permutation(46)
+              hidden_next = tf.random_shuffle(hidden_next,seed=2)
+              hidden = tf.random_shuffle(hidden,seed=2)
+              reward = tf.random_shuffle(reward,seed=2)
+              action = tf.random_shuffle(action,seed=2)
+              done = tf.random_shuffle(done,seed=2)
 
               done = tf.cast(done, dtype=tf.float32)
 
-              reward = tf.reshape(reward,(-1,1))
-              action = tf.reshape(action,(-1,2))
-              done = tf.reshape(done, (-1, 1))
-              hidden_next = tf.reshape(hidden_next, (-1, 250))
-              hidden = tf.reshape(hidden, (-1, 250))
+              reward = tf.reshape(reward,(-1,1)) #245,1
+              action = tf.reshape(action,(-1,2)) #245,2
+              done = tf.reshape(done, (-1, 1)) #245,1
+              hidden_next = tf.reshape(hidden_next, (-1, 250)) #245,250
+              hidden = tf.reshape(hidden, (-1, 250)) #245,250
 
-              x = tf.placeholder(dtype=tf.float32, shape=(None, 250))
-              a = tf.placeholder(dtype=tf.float32, shape=(None, 2))
+              # x = tf.placeholder(dtype=tf.float32, shape=(None, 250))
+              # a = tf.placeholder(dtype=tf.float32, shape=(None, 2))
               mu, pi, logp_pi, q1, q2, q1_pi, q2_pi = main_actor_critic(hidden,action)
               _, _, logp_pi_, _, _,q1_pi_, q2_pi_ = target_actor_critic(hidden_next,action)
-              _, pi_ep, _, _, _, _, _ = episode_actor_critic(x, a)
+              # _, pi_ep, _, _, _, _, _ = episode_actor_critic(x, a)
 
 
               target_init = tf.group([tf.assign(v_targ, v_main) for v_main, v_targ in
                                       zip(get_vars('main_actor_critic'), get_vars('target_actor_critic'))])
 
-              if args.alpha == 'auto':
-                  target_entropy = (-np.prod([2,1]))
+              # if alpha == 'auto':
+              #     target_entropy = (-2)
+              #
+              #     log_alpha = tf.get_variable('log_alpha', dtype=tf.float32, initializer=0.0)
+              #     alpha = tf.exp(log_alpha)
+              #
+              #     alpha_loss = tf.reduce_mean(-log_alpha * tf.stop_gradient(logp_pi + target_entropy))
+              #
+              #     alpha_optimizer = tf.train.AdamOptimizer(learning_rate=args.lr, name='alpha_optimizer')
+              #     train_alpha_op = alpha_optimizer.minimize(loss=alpha_loss, var_list=[log_alpha])
 
-                  log_alpha = tf.get_variable('log_alpha', dtype=tf.float32, initializer=1.0)
-                  alpha = tf.exp(log_alpha)
-
-                  alpha_loss = tf.reduce_mean(-log_alpha * tf.stop_gradient(logp_pi + target_entropy))
-
-                  alpha_optimizer = tf.train.AdamOptimizer(learning_rate=args.lr * 0.01, name='alpha_optimizer')
-                  train_alpha_op = alpha_optimizer.minimize(loss=alpha_loss, var_list=[log_alpha])
+              # if args.alpha == 'auto':
+              #     target_entropy = (-np.prod([2,1]))
+              #
+              #     log_alpha = tf.get_variable('log_alpha', dtype=tf.float32, initializer=1.0)
+              #     alpha = tf.exp(log_alpha)
+              #
+              #     alpha_loss = tf.reduce_mean(-log_alpha * tf.stop_gradient(logp_pi + target_entropy))
+              #
+              #     alpha_optimizer = tf.train.AdamOptimizer(learning_rate=args.lr * 0.01, name='alpha_optimizer')
+              #     train_alpha_op = alpha_optimizer.minimize(loss=alpha_loss, var_list=[log_alpha])
 
               min_q_pi = tf.minimum(q1_pi_, q2_pi_)
 
               # Targets for Q and V regression
-              v_backup = tf.stop_gradient(min_q_pi - args.alpha * logp_pi)
+              v_backup = tf.stop_gradient(min_q_pi - args.alpha * logp_pi_)
               q_backup = reward + args.gamma * (1 - done) * v_backup
 
               # Soft actor-critic losses
@@ -209,7 +227,13 @@ def define_model(data, trainer, config):
               # (control flow because sess.run otherwise evaluates in nondeterministic order)
               with tf.control_dependencies([train_value_op]):
                   target_update = tf.group([tf.assign(v_targ, args.polyak * v_targ + (1 - args.polyak) * v_main)
-                                            for v_main, v_targ in zip(get_vars('target_actor_critic'), get_vars('target_actor_critic'))])
+                                            for v_main, v_targ in zip(get_vars('main_actor_critic'), get_vars('target_actor_critic'))])
+
+              var_counts = tuple(sac1.count_vars(scope) for scope in
+                                 ['main_actor_critic/pi', 'main_actor_critic/q', 'main_actor_critic'])
+              print(('\nNumber of parameters: \t pi: %d, \t' + 'q: %d,  \t total: %d\n') % var_counts)
+
+
 
               # All ops to call during one training step
               if isinstance(args.alpha, Number):
@@ -217,7 +241,7 @@ def define_model(data, trainer, config):
                 step_ops = [pi_loss, q1_loss, q2_loss, q1, q2, logp_pi, tf.identity(args.alpha),
                               train_pi_op, train_value_op, target_update]
               else:
-                step_ops = [pi_loss, q1_loss, q2_loss, q1, q2, logp_pi, alpha,
+                step_ops = [pi_loss, q1_loss, q2_loss, q1, q2, logp_pi, args.alpha,
                               train_pi_op, train_value_op, target_update, train_alpha_op]
 
 
@@ -271,8 +295,9 @@ def define_model(data, trainer, config):
 
     dependencies.append(utility.print_metrics((
         ('score', score_train),
+        ('q1_loss', q1_loss),
+        ('q2_loss', q2_loss),
         ('pi_loss', pi_loss),
-        ('value_loss', value_loss),
     ), step, config.mean_metrics_every))
   with tf.control_dependencies(dependencies):
     score = tf.identity(score)

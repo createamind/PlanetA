@@ -607,12 +607,14 @@ class CarlaEnv(gym.Env):
         #     done = self.cnt1 > 50 and self.displacement < 0.2
         #print("intersection_offroad",py_measurements["intersection_offroad"])
         #print("intersection_otherlane",py_measurements["intersection_otherlane"])
-        done = (self.num_steps > self.scenario["max_steps"]
+
+        #for sac
+        done = (self.num_steps >= self.scenario["max_steps"]
                 or py_measurements["next_command"] == "REACH_GOAL" or (py_measurements["intersection_offroad"]) > 0.001 or (py_measurements["intersection_otherlane"])> 0.001
                 or (self.config["early_terminate_on_collision"]
                     and collided_done(py_measurements)))
-        print("done",done)
-
+        # print("done",done)
+        #print("max_steps",self.scenario["max_steps"])
         py_measurements["done"] = done
         print("done_py_measurements", py_measurements["done"])
 
