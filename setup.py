@@ -36,7 +36,7 @@ setuptools.setup(
      'ruamel.yaml',
      'scikit-image',
      'scipy',
-     'tensorflow-gpu==1.12.0',
+     'tensorflow-gpu==1.15.2',
      'tensorflow_probability==0.5.0',
      'opencv-python',
      'pygame',
